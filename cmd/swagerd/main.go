@@ -1,79 +1,55 @@
 package main
 
 import (
-  "bytes"
-  "fmt"
-  "log"
-  "os/exec"
-  "sync"
+	"log"
+	"net"
+	"os"
 
-  "github.com/libanvl/swager/internal/blocks"
-  "github.com/libanvl/swager/internal/core"
-  "go.i3wm.org/i3/v4"
+	"github.com/adrg/xdg"
+
+	"github.com/libanvl/swager/internal/blocks"
+	"github.com/libanvl/swager/internal/comm"
+	"github.com/libanvl/swager/internal/core"
+	"github.com/libanvl/swager/pkg/ipc"
 )
 
 func main() {
-  i3.SocketPathHook = func() (string, error) {
-    out, err := exec.Command("sway", "--get-socketpath").CombinedOutput()
-    if err != nil {
-      return "", fmt.Errorf("getting sway socketpath: %v (output: %s)", err, out)
-    }
+	blocks.RegisterBlocks()
 
-    return string(out), nil
-  }
+	client, err := ipc.Connect()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-  i3.IsRunningHook = func() bool {
-    out, err := exec.Command("pgrep", "-c", "sway\\$").CombinedOutput()
-    if err != nil {
-      log.Printf("sway running: %v (output %s)", err, out)
-    }
+	sub := ipc.Subscribe()
 
-    return bytes.Compare(out, []byte("1")) == 0
-  }
+	addr, err := xdg.RuntimeFile("swager/swager.sock")
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-  blocks.RegisterBlocks()
-  var wg sync.WaitGroup
+	os.RemoveAll(addr)
+	listener, err := net.Listen("unix", addr)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-  for key, factory := range core.Blocks {
-    log.Printf("Found Block: %v", key)
-    block := factory()
-    if err := block.Init(core.WinMgrSway); err != nil {
-      log.Panicf("Failed to Init block: %s", key)
-    }
-    if err := block.Configure(nil); err != nil {
-      log.Panicf("Failed to Configure block: %s", key)
-    }
+	logch := make(chan string)
 
-    eventBlock, ok := block.(core.ChangeEventBlock)
-    if ok {
-      for _, et := range eventBlock.Event() {
-        if et == i3.WindowEventType {
-          wg.Add(1)
-          go ProcessWindowEvents(&wg, eventBlock)
-        }
-      }
-    }
-  }
+	opts := core.Options{Debug: true, Log: logch}
 
-  log.Print("waiting...")
-  wg.Wait()
-}
+	server, err := comm.CreateServer(core.Blocks, listener, client, sub, &opts)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-func ProcessWindowEvents(wg *sync.WaitGroup, b core.ChangeEventBlock) {
-  r := i3.Subscribe(i3.WindowEventType)
-  for r.Next() {
-    evt, ok := r.Event().(*i3.WindowEvent)
-    if ok {
-      log.Print("Got window event")
-      if !b.MatchChange(evt.Change) {
-        log.Print("Does not match change")
-        continue
-      }
-      go b.OnEvent(evt)
-    }
-  }
+	exitch := make(chan bool)
 
-  r.Close()
-  b.Close()
-  wg.Done()
+	server.NotifyExit(exitch)
+
+	go sub.Start()
+	go server.Start()
+	defer sub.Close()
+
+	<-exitch
 }

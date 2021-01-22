@@ -1,7 +1,7 @@
 package core
 
 import (
-  "fmt"
+	"fmt"
 )
 
 type BlockFactory func() Block
@@ -9,25 +9,25 @@ type BlockFactory func() Block
 type BlockRegistry map[string]BlockFactory
 
 type DuplicateKeyError struct {
-  key string
+	key string
 }
 
 var Blocks BlockRegistry
 
 func init() {
-  Blocks = make(BlockRegistry)
+	Blocks = make(BlockRegistry)
 }
 
 func (e *DuplicateKeyError) Error() string {
-  return fmt.Sprintf("the block factory key already exists in the registry: %s", e.key)
+	return fmt.Sprintf("the block factory key already exists in the registry: %s", e.key)
 }
 
 func (r BlockRegistry) Register(key string, factory BlockFactory) error {
-  _, exists := r[key]
-  if exists {
-    return &DuplicateKeyError{key: key}
-  }
+	_, exists := r[key]
+	if exists {
+		return &DuplicateKeyError{key: key}
+	}
 
-  r[key] = factory
-  return nil
+	r[key] = factory
+	return nil
 }

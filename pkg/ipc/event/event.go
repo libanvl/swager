@@ -1,38 +1,52 @@
 package event
 
 import (
-  "github.com/libanvl/swager/pkg/ipc/reply"
+	"github.com/libanvl/swager/pkg/ipc/reply"
 )
 
-type EventType uint32
+type WorkspaceChangeType string
 
 const (
-  WorkspaceEvent       EventType = 0x80000000
-  ModeEvent            EventType = 0x80000002
-  WindowEvent          EventType = 0x80000003
-  BarconfigUpdateEvent EventType = 0x80000004
-  BindingEvent         EventType = 0x80000005
-  ShutdownEvent        EventType = 0x80000006
-  TickEvent            EventType = 0x80000007
-  BarStatusUpdateEvent EventType = 0x80000014
-  InputEvent           EventType = 0x80000015
+	InitWorkspace   WorkspaceChangeType = "init"
+	EmptyWorkspace  WorkspaceChangeType = "empty"
+	FocusWorkspace  WorkspaceChangeType = "focus"
+	MoveWorkspace   WorkspaceChangeType = "move"
+	RenameWorkspace WorkspaceChangeType = "rename"
+	UrgentWorkspace WorkspaceChangeType = "urgent"
+	ReloadWorkspace WorkspaceChangeType = "reload"
 )
+
+type WorkspaceChange struct {
+	Change  WorkspaceChangeType
+	Current reply.Node
+	Old     reply.Node
+}
 
 type WindowChangeType string
 
 const (
-  NewWindow             WindowChangeType = "new"
-  CloseWindow           WindowChangeType = "close"
-  FocusWindow           WindowChangeType = "focus"
-  TitleWindow           WindowChangeType = "title"
-  FullscreenModeWindow  WindowChangeType = "fullscreen_mode"
-  MoveWindow            WindowChangeType = "move"
-  FloatingWindow        WindowChangeType = "floating"
-  UrgentWindow          WindowChangeType = "urgent"
-  MarkWindow            WindowChangeType = "mark"
+	NewWindow            WindowChangeType = "new"
+	CloseWindow          WindowChangeType = "close"
+	FocusWindow          WindowChangeType = "focus"
+	TitleWindow          WindowChangeType = "title"
+	FullscreenModeWindow WindowChangeType = "fullscreen_mode"
+	MoveWindow           WindowChangeType = "move"
+	FloatingWindow       WindowChangeType = "floating"
+	UrgentWindow         WindowChangeType = "urgent"
+	MarkWindow           WindowChangeType = "mark"
 )
 
-type WindowReply struct {
-  Change    WindowChangeType `json:"change"`
-  Container reply.Node       `json:"container"`
+type WindowChange struct {
+	Change    WindowChangeType `json:"change"`
+	Container reply.Node       `json:"container"`
+}
+
+type ShutdownChangeType string
+
+const (
+	ExitShutdown ShutdownChangeType = "exit"
+)
+
+type ShutdownChange struct {
+	Change ShutdownChangeType
 }
