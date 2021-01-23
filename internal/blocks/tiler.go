@@ -6,7 +6,7 @@ import (
 
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc/event"
-	"github.com/libanvl/swager/pkg/ipc/reply"
+	"github.com/libanvl/swager/pkg/ipc"
 )
 
 type Tiler struct {
@@ -39,7 +39,7 @@ func (t *Tiler) Run() {
 			continue
 		}
 
-		if evt.Container.Type == reply.FloatingConNode {
+		if evt.Container.Type == ipc.FloatingConNode {
 			if t.opts.Debug {
 				t.opts.Log <- "Focused window is floating"
 			}
@@ -48,7 +48,7 @@ func (t *Tiler) Run() {
 
 		t.opts.Log <- fmt.Sprintf("Window: %v, Layout: %v", evt.Container.Name, evt.Container.Layout)
 
-		root, err := t.client.GetTree()
+		root, err := t.client.Tree()
 		if err != nil {
 			t.opts.Log <- fmt.Sprintf("Fatal error: GetTree failed: %v", err)
 			break
@@ -81,7 +81,7 @@ func (t *Tiler) Run() {
 		}
 
 		if parent.Layout != newlayout {
-			s, err := t.client.RunCommand(newlayout)
+			s, err := t.client.Command(newlayout)
 			if err != nil {
 				t.opts.Log <- fmt.Sprintf("Error sending command: %v", err)
 			}

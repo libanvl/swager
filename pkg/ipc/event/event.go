@@ -1,7 +1,7 @@
 package event
 
 import (
-	"github.com/libanvl/swager/pkg/ipc/reply"
+	"github.com/libanvl/swager/pkg/ipc"
 )
 
 type WorkspaceChangeType string
@@ -18,8 +18,8 @@ const (
 
 type WorkspaceChange struct {
 	Change  WorkspaceChangeType
-	Current reply.Node
-	Old     reply.Node
+	Current ipc.Node
+	Old     ipc.Node
 }
 
 type WindowChangeType string
@@ -38,7 +38,7 @@ const (
 
 type WindowChange struct {
 	Change    WindowChangeType `json:"change"`
-	Container reply.Node       `json:"container"`
+	Container ipc.Node         `json:"container"`
 }
 
 type ShutdownChangeType string

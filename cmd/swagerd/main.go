@@ -1,29 +1,34 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
-
-	"github.com/adrg/xdg"
 
 	"github.com/libanvl/swager/internal/blocks"
 	"github.com/libanvl/swager/internal/comm"
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/pkg/ipc/event"
 )
 
 func main() {
-	blocks.RegisterBlocks()
+  var addr string
 
-	client, err := ipc.Connect()
-	if err != nil {
-		log.Fatalln(err)
-	}
+  flag.StringVar(&addr, "socket", "", "Path to the unix domain socket")
+  flag.Parse()
 
-	sub := ipc.Subscribe()
+  if addr == "" {
+    log.Fatalln("A value for socket is required.")
+  }
 
-	addr, err := xdg.RuntimeFile("swager/swager.sock")
+  blocks.RegisterBlocks()
+
+	sub := event.Subscribe()
+
+  client, err := ipc.Connect()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -34,22 +39,34 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	logch := make(chan string)
+  defer os.RemoveAll(addr)
 
+	logch := make(chan string)
 	opts := core.Options{Debug: true, Log: logch}
 
-	server, err := comm.CreateServer(core.Blocks, listener, client, sub, &opts)
-	if err != nil {
-		log.Fatalln(err)
-	}
+  ctrlch := make(chan *comm.ControlArgs)
+  config := comm.ServerConfig {
+    Blocks: core.Blocks,
+    Client: client,
+    Sub: sub,
+    Ctrl: ctrlch,
+  }
 
-	exitch := make(chan bool)
+	server := comm.CreateServer(&config, &opts)
 
-	server.NotifyExit(exitch)
+  rpc.Register(server)
 
 	go sub.Start()
-	go server.Start()
-	defer sub.Close()
+  defer sub.Close()
 
-	<-exitch
+  go rpc.Accept(listener)
+
+  log.Printf("swagerd listening on %s", addr)
+
+  for cargs := range ctrlch {
+    if cargs.Command == comm.ExitServer {
+      log.Println("Exiting server. Goodbye!")
+      break
+    }
+  }
 }

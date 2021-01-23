@@ -14,7 +14,7 @@ func (c client) ipccall(pt PayloadType, payload []byte) ([]byte, error) {
 }
 
 func (c client) write(pt PayloadType, payload []byte) error {
-	h := Header(pt, len(payload))
+	h := NewHeader(pt, len(payload))
 	if err := binary.Write(c, binary.LittleEndian, h); err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (c client) write(pt PayloadType, payload []byte) error {
 }
 
 func (c client) read() ([]byte, error) {
-	var h header
+	var h Header
 	if err := binary.Read(c, binary.LittleEndian, &h); err != nil {
 		return nil, err
 	}

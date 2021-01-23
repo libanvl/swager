@@ -32,14 +32,18 @@ const (
 
 var magic = [6]byte{'i', '3', '-', 'i', 'p', 'c'}
 
-type header struct {
+func ValidMagic(test [6]byte) bool {
+	return test == magic
+}
+
+type Header struct {
 	Magic         [6]byte
 	PayloadLength uint32
 	PayloadType   PayloadType
 }
 
-func Header(pt PayloadType, plen int) *header {
-	h := new(header)
+func NewHeader(pt PayloadType, plen int) *Header {
+	h := new(Header)
 	h.Magic = magic
 	h.PayloadLength = uint32(plen)
 	h.PayloadType = pt
@@ -50,31 +54,22 @@ func (p PayloadType) eventName() string {
 	switch p {
 	case WorkspaceEvent:
 		return "workspace"
-		break
 	case ModeEvent:
 		return "mode"
-		break
 	case WindowEvent:
 		return "window"
-		break
 	case BarconfigUpdateEvent:
 		return "barconfig_update"
-		break
 	case BindingEvent:
 		return "binding"
-		break
 	case ShutdownEvent:
 		return "shutdown"
-		break
 	case TickEvent:
 		return "tick"
-		break
 	case BarStatusUpdateEvent:
 		return "bar_status_update"
-		break
 	case InputEvent:
 		return "input"
-		break
 	}
 
 	return ""

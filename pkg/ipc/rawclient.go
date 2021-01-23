@@ -2,8 +2,9 @@ package ipc
 
 type ClientRaw interface {
 	Close() error
-	VersionRaw() (string, error)
 	WorkspacesRaw() (string, error)
+	TreeRaw() (string, error)
+	VersionRaw() (string, error)
 }
 
 func init() {
@@ -18,10 +19,15 @@ func (c client) ipccallraw(pt PayloadType, payload []byte) (string, error) {
 	return string(res), nil
 }
 
+func (c client) WorkspacesRaw() (string, error) {
+	return c.ipccallraw(GetWorkspacesMessage, nil)
+}
+
+func (c client) TreeRaw() (string, error) {
+	return c.ipccallraw(GetTreeMessage, nil)
+}
+
 func (c client) VersionRaw() (string, error) {
 	return c.ipccallraw(GetVersionMessage, nil)
 }
 
-func (c client) WorkspacesRaw() (string, error) {
-	return c.ipccallraw(GetWorkspacesMessage, nil)
-}

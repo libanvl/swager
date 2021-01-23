@@ -59,6 +59,6 @@ func (i *InitSpawn) Run() {
 			continue
 		}
 
-		i.client.RunCommand(cmd)
+		i.client.Command(cmd)
 	}
 }

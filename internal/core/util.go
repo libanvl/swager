@@ -1,15 +1,14 @@
 package core
 
-import (
-	"github.com/libanvl/swager/pkg/ipc/reply"
-)
+import "github.com/libanvl/swager/pkg/ipc"
 
-func FindParent(root *reply.Node, childid int) *reply.Node {
+
+func FindParent(root *ipc.Node, childid int) *ipc.Node {
 	return root.FindChild(isParentOf(childid))
 }
 
-func isParentOf(childid int) func(n *reply.Node) bool {
-	return func(nn *reply.Node) bool {
+func isParentOf(childid int) func(n *ipc.Node) bool {
+	return func(nn *ipc.Node) bool {
 		for _, nnn := range nn.Nodes {
 			if nnn.ID == childid {
 				return true

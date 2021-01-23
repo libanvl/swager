@@ -3,23 +3,22 @@ package core
 import (
 	"github.com/libanvl/swager/pkg/ipc"
 	"github.com/libanvl/swager/pkg/ipc/event"
-	"github.com/libanvl/swager/pkg/ipc/reply"
 )
 
 func init() {
 	// core.Client must be a subset of ipc.Client
-	var _ Client = (ipc.Client)(nil)
 	// core.Subscription must be a subset of ipc.Subscription
-	var _ Sub = (ipc.Subscription)(nil)
+	var _ Client = (ipc.Client)(nil)
+	var _ Sub = (event.Subscription)(nil)
 }
 
 type Client interface {
 	ClientRaw() ipc.ClientRaw
-	RunCommand(cmd string) ([]reply.Command, error)
-	GetTree() (*reply.Node, error)
-	Subscribe(evts ...ipc.PayloadType) (*reply.Result, error)
-	Version() (*reply.Version, error)
-	Workspaces() ([]reply.Workspace, error)
+	Command(cmd string) ([]ipc.Command, error)
+	Workspaces() ([]ipc.Workspace, error)
+	Subscribe(evts ...ipc.PayloadType) (*ipc.Result, error)
+	Tree() (*ipc.Node, error)
+	Version() (*ipc.Version, error)
 }
 
 type Sub interface {

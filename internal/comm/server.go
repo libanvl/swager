@@ -1,106 +1,83 @@
 package comm
 
 import (
-  "net"
-  "net/rpc"
-
-  "github.com/libanvl/swager/internal/core"
-  "github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/internal/core"
+	"github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/pkg/ipc/event"
 )
 
-type SwagerServer interface {
-  Start()
-  NotifyExit(chan<- bool)
-}
-
 type Swager struct {
-  l            net.Listener
-  blocks       core.BlockRegistry
-  opts         *core.Options
-  initalized   map[string]core.Block
-  client       ipc.Client
-  subscription ipc.Subscription
-  exitch       chan<- bool
+	cfg        *ServerConfig
+	opts       *core.Options
+	initalized map[string]core.Block
 }
 
-func CreateServer(b core.BlockRegistry, l net.Listener, c ipc.Client, s ipc.Subscription, o *core.Options) (SwagerServer, error) {
-  swager := new(Swager)
-  swager.l = l
-  swager.blocks = b
-  swager.opts = o
-  swager.client = c
-  swager.subscription = s
-
-  if err := rpc.Register(swager); err != nil {
-    return nil, err
-  }
-
-  return swager, nil
+type ServerConfig struct {
+	Blocks core.BlockRegistry
+	Client ipc.Client
+	Sub    event.Subscription
+	Ctrl   chan<- *ControlArgs
 }
 
-func (s *Swager) NotifyExit(exit chan<- bool) {
-  // move this to options
-  s.exitch = exit
-}
-
-func (s *Swager) Start() {
-  // do this from the caller
-  rpc.Accept(s.l)
+func CreateServer(cfg *ServerConfig, opts *core.Options) *Swager {
+	swager := new(Swager)
+	swager.cfg = cfg
+  swager.opts = opts
+	return swager
 }
 
 func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
-  blockfac, ok := s.blocks[args.Block]
-  if !ok {
-    return &BlockNotFoundError{args.Block}
-  }
+	blockfac, ok := s.cfg.Blocks[args.Block]
+	if !ok {
+		return &BlockNotFoundError{args.Block}
+	}
 
-  block := blockfac()
-  if err := block.Init(s.client, s.subscription, s.opts); err != nil {
-    return &BlockInitializationError{err, args.Block}
-  }
+	block := blockfac()
+	if err := block.Init(s.cfg.Client, s.cfg.Sub, s.opts); err != nil {
+		return &BlockInitializationError{err, args.Block}
+	}
 
-  if err := block.Configure(args.Config); err != nil {
-    return &BlockInitializationError{err, args.Block}
-  }
+	if err := block.Configure(args.Config); err != nil {
+		return &BlockInitializationError{err, args.Block}
+	}
 
-  if s.initalized == nil {
-    s.initalized = map[string]core.Block{args.Tag: block}
-  } else {
-    s.initalized[args.Tag] = block
-  }
+	if s.initalized == nil {
+		s.initalized = map[string]core.Block{args.Tag: block}
+	} else {
+		s.initalized[args.Tag] = block
+	}
 
-  reply.Success = true
-  return nil
+	reply.Success = true
+	return nil
 }
 
 func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
-  block, ok := s.initalized[args.Tag]
-  if !ok {
-    return &TagNotFoundError{args.Tag}
-  }
+	block, ok := s.initalized[args.Tag]
+	if !ok {
+		return &TagNotFoundError{args.Tag}
+	}
 
-  rcv, ok := block.(core.Receiver)
-  if !ok {
-    return &TagCannotReceiveError{args.Tag}
-  }
+	rcv, ok := block.(core.Receiver)
+	if !ok {
+		return &TagCannotReceiveError{args.Tag}
+	}
 
-  if err := rcv.Receive(args.Args); err != nil {
-    return &TagReceiveError{err, args.Tag}
-  }
+	if err := rcv.Receive(args.Args); err != nil {
+		return &TagReceiveError{err, args.Tag}
+	}
 
-  reply.Success = true
-  return nil
+	reply.Success = true
+	return nil
 }
 
-func (s *Swager) ExitServer(restart bool, reply *Reply) error {
-  if !restart {
-    reply.Success = false
+func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
+  switch args.Command {
+  case PingServer:
+    reply.Success = true
     return nil
+  default:
+    s.cfg.Ctrl <- args
   }
-
-  if s.exitch != nil {
-    s.exitch <- restart
-  }
-
-  return nil
+	reply.Success = true
+	return nil
 }

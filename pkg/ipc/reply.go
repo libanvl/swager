@@ -1,4 +1,4 @@
-package reply
+package ipc
 
 type Version struct {
 	HumanReadable        string `json:"human_readable"`
@@ -25,6 +25,27 @@ type Workspace struct {
 	Focused bool   `json:"focused"`
 	Rect    Rect   `json:"rect"`
 	Output  string `json:"output"`
+}
+
+type Mode struct {
+	Width   int `json:"width"`
+	Height  int `json:"height"`
+	Refresh int `json:"refresh"`
+}
+
+type Output struct {
+	Name             string  `json:"name"`
+	Make             string  `json:"make"`
+	Model            string  `json:"model"`
+	Serial           string  `json:"serial"`
+	Active           bool    `json:"active"`
+	Primary          bool    `json:"primary"`
+	Scale            float64 `json:"scale"`
+	SubpixelHinting  string  `json:"subpixel_hinting"`
+	Transform        string  `json:"transform"`
+	CurrentWorkspace string  `json:"current_workspace"`
+	Modes            []Mode  `json:"modes"`
+	CurrentMode      Mode    `json:"current_mode"`
 }
 
 type Rect struct {

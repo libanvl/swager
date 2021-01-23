@@ -1,4 +1,4 @@
-package reply
+package ipc
 
 func (n *Node) FindChild(predicate func(*Node) bool) *Node {
 	if predicate(n) {
