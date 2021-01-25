@@ -1,6 +1,8 @@
 package comm
 
 import (
+	"fmt"
+
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc"
 	"github.com/libanvl/swager/pkg/ipc/event"
@@ -37,9 +39,17 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 		return &BlockInitializationError{err, args.Block}
 	}
 
+  if s.opts.Debug {
+    s.opts.Log <- fmt.Sprintf("[%s](%s) initalized", args.Block, args.Tag)
+  }
+
 	if err := block.Configure(args.Config); err != nil {
 		return &BlockInitializationError{err, args.Block}
 	}
+
+  if s.opts.Debug {
+    s.opts.Log <- fmt.Sprintf("[%s](%s) configured", args.Block, args.Tag)
+  }
 
 	if s.initalized == nil {
 		s.initalized = map[string]core.Block{args.Tag: block}
@@ -75,6 +85,19 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
   case PingServer:
     reply.Success = true
     return nil
+  case RunServer:
+    if s.opts.Debug {
+      s.opts.Log <- "running initalized blocks"
+    }
+    for _, block := range s.initalized {
+      go block.Run()
+    }
+    go s.cfg.Sub.Start()
+    reply.Success = true
+    return nil
+  case ExitServer:
+    s.cfg.Sub.Close()
+    fallthrough
   default:
     s.cfg.Ctrl <- args
   }

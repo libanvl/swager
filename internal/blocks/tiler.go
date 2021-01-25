@@ -23,11 +23,17 @@ func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options) error
 	t.client = client
 	t.winevts = sub.Window()
 	t.opts = opts
+  if t.opts.Debug {
+    t.opts.Log <- "tiler initalized"
+  }
 	return nil
 }
 
 func (t *Tiler) Configure(args []string) error {
-	return nil
+  if t.opts.Debug {
+    t.opts.Log <- "tiler configured"
+  }
+  return nil
 }
 
 func (t *Tiler) Run() {

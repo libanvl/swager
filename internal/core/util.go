@@ -1,7 +1,8 @@
 package core
 
-import "github.com/libanvl/swager/pkg/ipc"
-
+import (
+	"github.com/libanvl/swager/pkg/ipc"
+)
 
 func FindParent(root *ipc.Node, childid int) *ipc.Node {
 	return root.FindChild(isParentOf(childid))

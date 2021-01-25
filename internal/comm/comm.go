@@ -1,6 +1,32 @@
 package comm
 
-import "math"
+import (
+	"errors"
+	"fmt"
+	"math"
+	"os"
+	"strings"
+
+	"github.com/adrg/xdg"
+)
+
+func GetSwagerSocket() (string, error) {
+  swaysock, present := os.LookupEnv("SWAYSOCK")
+  if !present {
+    return "", errors.New("SWAYSOCK not set")
+  }
+
+  info, err := os.Stat(swaysock)
+  if err != nil {
+    return "", err
+  }
+
+  parts := strings.Split(info.Name(), ".")
+  swayuid := parts[1]
+  swaypid := parts[2]
+
+  return xdg.RuntimeFile(fmt.Sprintf("swager-ipc/%s.%s.sock", swayuid, swaypid))
+}
 
 type SwagerMethod string
 
@@ -18,6 +44,7 @@ type ServerControl int8
 
 const (
   PingServer ServerControl = 0
+  RunServer  ServerControl = 1
 	ExitServer ServerControl = math.MaxInt8
 )
 

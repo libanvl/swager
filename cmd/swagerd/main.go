@@ -1,11 +1,12 @@
 package main
 
 import (
-	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/rpc"
 	"os"
+	"os/signal"
 
 	"github.com/libanvl/swager/internal/blocks"
 	"github.com/libanvl/swager/internal/comm"
@@ -15,36 +16,39 @@ import (
 )
 
 func main() {
-  var addr string
+  addr, err := comm.GetSwagerSocket()
+  if err != nil {
+    log.Fatal("swager socket error:", addr)
+  }
 
-  flag.StringVar(&addr, "socket", "", "Path to the unix domain socket")
-  flag.Parse()
-
-  if addr == "" {
-    log.Fatalln("A value for socket is required.")
+  if _, err := os.Stat(addr); !os.IsNotExist(err) {
+    if err := os.RemoveAll(addr); err != nil {
+      log.Fatal("socket already exists:", err)
+    }
   }
 
   blocks.RegisterBlocks()
+  log.Printf("registered blocks: %v\n", len(core.Blocks))
 
 	sub := event.Subscribe()
-
   client, err := ipc.Connect()
 	if err != nil {
-		log.Fatalln(err)
+    log.Fatal("failed getting sway client:", err)
 	}
 
-	os.RemoveAll(addr)
+  signalch := make(chan os.Signal)
+  signal.Notify(signalch, os.Interrupt)
+  signal.Notify(signalch, os.Kill)
+
 	listener, err := net.Listen("unix", addr)
 	if err != nil {
-		log.Fatalln(err)
+    log.Fatal("failed listening on socket:", err)
 	}
-
   defer os.RemoveAll(addr)
 
-	logch := make(chan string)
-	opts := core.Options{Debug: true, Log: logch}
-
+  logch := make(chan string, 10)
   ctrlch := make(chan *comm.ControlArgs)
+	opts := core.Options{Debug: true, Log: logch}
   config := comm.ServerConfig {
     Blocks: core.Blocks,
     Client: client,
@@ -53,20 +57,32 @@ func main() {
   }
 
 	server := comm.CreateServer(&config, &opts)
-
   rpc.Register(server)
 
-	go sub.Start()
-  defer sub.Close()
+  log.Println("rpc server registered")
 
   go rpc.Accept(listener)
 
-  log.Printf("swagerd listening on %s", addr)
+  fmt.Println("SOCKET:", addr)
 
-  for cargs := range ctrlch {
-    if cargs.Command == comm.ExitServer {
-      log.Println("Exiting server. Goodbye!")
-      break
+  for {
+    select {
+    case l := <-logch:
+      log.Println(l)
+    case cmdargs := <-ctrlch:
+      if cmdargs.Command != comm.ExitServer {
+        continue
+      }
+      goto done
+    case _ = <-signalch:
+      goto done
     }
   }
+
+done:
+  fmt.Println("SHUTTING DOWN...")
+  close(ctrlch)
+  close(signalch)
+  close(logch)
+  fmt.Println("GOODBYE")
 }
