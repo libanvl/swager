@@ -1,56 +1,62 @@
 package ipc
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=PayloadType
-type PayloadType uint32
-
+//go:generate go run golang.org/x/tools/cmd/stringer -type=payloadType
+type payloadType uint32
 const (
-	RunCommandMessage      PayloadType = 0
-	GetWorkspacesMessage   PayloadType = 1
-	SubscribeMessage       PayloadType = 2
-	GetOutputsMessage      PayloadType = 3
-	GetTreeMessage         PayloadType = 4
-	GetMarksMessage        PayloadType = 5
-	GetBarConfigMessage    PayloadType = 6
-	GetVersionMessage      PayloadType = 7
-	GetBindingModesMessage PayloadType = 8
-	GetConfigMessage       PayloadType = 9
-	SendTickMessage        PayloadType = 10
-	SyncMessage            PayloadType = 11
-	GetBindingStateMessage PayloadType = 12
-	GetInputsMessage       PayloadType = 100
-	GetSeatsMessage        PayloadType = 101
-	WorkspaceEvent         PayloadType = 0x80000000
-	ModeEvent              PayloadType = 0x80000002
-	WindowEvent            PayloadType = 0x80000003
-	BarconfigUpdateEvent   PayloadType = 0x80000004
-	BindingEvent           PayloadType = 0x80000005
-	ShutdownEvent          PayloadType = 0x80000006
-	TickEvent              PayloadType = 0x80000007
-	BarStatusUpdateEvent   PayloadType = 0x80000014
-	InputEvent             PayloadType = 0x80000015
+	RunCommandMessage      payloadType = 0
+	GetWorkspacesMessage   payloadType = 1
+	SubscribeMessage       payloadType = 2
+	GetOutputsMessage      payloadType = 3
+	GetTreeMessage         payloadType = 4
+	GetMarksMessage        payloadType = 5
+	GetBarConfigMessage    payloadType = 6
+	GetVersionMessage      payloadType = 7
+	GetBindingModesMessage payloadType = 8
+	GetConfigMessage       payloadType = 9
+	SendTickMessage        payloadType = 10
+	SyncMessage            payloadType = 11
+	GetBindingStateMessage payloadType = 12
+	GetInputsMessage       payloadType = 100
+	GetSeatsMessage        payloadType = 101
+)
+
+//go:generate go run golang.org/x/tools/cmd/stringer -type=EventPayloadType
+type EventPayloadType payloadType
+const (
+	WorkspaceEvent         EventPayloadType = 0x80000000
+	ModeEvent              EventPayloadType = 0x80000002
+	WindowEvent            EventPayloadType = 0x80000003
+	BarconfigUpdateEvent   EventPayloadType = 0x80000004
+	BindingEvent           EventPayloadType = 0x80000005
+	ShutdownEvent          EventPayloadType = 0x80000006
+	TickEvent              EventPayloadType = 0x80000007
+	BarStatusUpdateEvent   EventPayloadType = 0x80000014
+	InputEvent             EventPayloadType = 0x80000015
 )
 
 var magic = [6]byte{'i', '3', '-', 'i', 'p', 'c'}
 
-func ValidMagic(test [6]byte) bool {
+// validMagic tests whether the byte array represents
+// the ipc payload magic string
+func validMagic(test [6]byte) bool {
 	return test == magic
 }
 
-type Header struct {
+type header struct {
 	Magic         [6]byte
 	PayloadLength uint32
-	PayloadType   PayloadType
+	PayloadType   payloadType
 }
 
-func NewHeader(pt PayloadType, plen int) *Header {
-	h := new(Header)
+func newHeader(pt payloadType, plen int) *header {
+	h := new(header)
 	h.Magic = magic
 	h.PayloadLength = uint32(plen)
 	h.PayloadType = pt
 	return h
 }
 
-func (p PayloadType) eventName() string {
+func (p EventPayloadType) eventName() string {
 	switch p {
 	case WorkspaceEvent:
 		return "workspace"
@@ -75,7 +81,7 @@ func (p PayloadType) eventName() string {
 	return ""
 }
 
-func eventNames(ps []PayloadType) []string {
+func eventNames(ps []EventPayloadType) []string {
 	s := make([]string, len(ps))
 	for i, p := range ps {
 		s[i] = p.eventName()

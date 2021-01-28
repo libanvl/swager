@@ -5,13 +5,12 @@ import (
 	"log"
 
 	"github.com/libanvl/swager/internal/core"
-	"github.com/libanvl/swager/pkg/ipc/event"
 	"github.com/libanvl/swager/pkg/ipc"
 )
 
 type Tiler struct {
 	client  core.Client
-	winevts <-chan *event.WindowChange
+	winevts <-chan *ipc.WindowChange
 	opts    *core.Options
 }
 
@@ -21,27 +20,18 @@ func init() {
 
 func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options) error {
 	t.client = client
-	t.winevts = sub.Window()
+	t.winevts = sub.WindowChanges()
 	t.opts = opts
-  if t.opts.Debug {
-    t.opts.Log <- "tiler initalized"
-  }
 	return nil
 }
 
 func (t *Tiler) Configure(args []string) error {
-  if t.opts.Debug {
-    t.opts.Log <- "tiler configured"
-  }
-  return nil
+	return nil
 }
 
 func (t *Tiler) Run() {
 	for evt := range t.winevts {
-		if evt.Change != event.FocusWindow {
-			if t.opts.Debug {
-				t.opts.Log <- "Window change not a focus event"
-			}
+		if evt.Change != ipc.FocusWindow {
 			continue
 		}
 

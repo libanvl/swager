@@ -7,6 +7,6 @@ func RegisterBlocks() {
 		func() core.Block { return new(Tiler) })
 	core.Blocks.Register("initspawn",
 		func() core.Block { return new(InitSpawn) })
-  core.Blocks.Register("execnew",
-    func() core.Block { return new(ExecNew) } )
+	core.Blocks.Register("execnew",
+		func() core.Block { return new(ExecNew) })
 }

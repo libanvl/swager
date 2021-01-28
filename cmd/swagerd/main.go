@@ -1,21 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net"
-	"net/rpc"
-	"os"
-	"os/signal"
+  "flag"
+  "fmt"
+  "log"
+  "net"
+  "net/rpc"
+  "os"
+  "os/signal"
 
-	"github.com/libanvl/swager/internal/blocks"
-	"github.com/libanvl/swager/internal/comm"
-	"github.com/libanvl/swager/internal/core"
-	"github.com/libanvl/swager/pkg/ipc"
-	"github.com/libanvl/swager/pkg/ipc/event"
+  "github.com/libanvl/swager/blocks"
+  "github.com/libanvl/swager/internal/comm"
+  "github.com/libanvl/swager/internal/core"
 )
 
 func main() {
+  debug := flag.Bool("debug", false, "Whether to log debug messages")
+  flag.Parse()
+
   addr, err := comm.GetSwagerSocket()
   if err != nil {
     log.Fatal("swager socket error:", addr)
@@ -23,46 +25,37 @@ func main() {
 
   if _, err := os.Stat(addr); !os.IsNotExist(err) {
     if err := os.RemoveAll(addr); err != nil {
-      log.Fatal("socket already exists:", err)
+      log.Fatal("socket cannot be reset:", addr)
     }
   }
 
   blocks.RegisterBlocks()
   log.Printf("registered blocks: %v\n", len(core.Blocks))
 
-	sub := event.Subscribe()
-  client, err := ipc.Connect()
-	if err != nil {
-    log.Fatal("failed getting sway client:", err)
-	}
+  logch := make(chan string, 10)
+  ctrlch := make(chan *comm.ControlArgs)
+  opts := core.Options{Debug: *debug, Log: logch}
+  config := comm.ServerConfig{
+    Blocks: core.Blocks,
+    Ctrl:   ctrlch,
+  }
+
+  server := comm.CreateServer(&config, &opts)
 
   signalch := make(chan os.Signal)
   signal.Notify(signalch, os.Interrupt)
   signal.Notify(signalch, os.Kill)
 
-	listener, err := net.Listen("unix", addr)
-	if err != nil {
+  listener, err := net.Listen("unix", addr)
+  if err != nil {
     log.Fatal("failed listening on socket:", err)
-	}
+  }
   defer os.RemoveAll(addr)
 
-  logch := make(chan string, 10)
-  ctrlch := make(chan *comm.ControlArgs)
-	opts := core.Options{Debug: true, Log: logch}
-  config := comm.ServerConfig {
-    Blocks: core.Blocks,
-    Client: client,
-    Sub: sub,
-    Ctrl: ctrlch,
-  }
-
-	server := comm.CreateServer(&config, &opts)
   rpc.Register(server)
-
   log.Println("rpc server registered")
 
   go rpc.Accept(listener)
-
   fmt.Println("SOCKET:", addr)
 
   for {
@@ -73,13 +66,13 @@ func main() {
       if cmdargs.Command != comm.ExitServer {
         continue
       }
-      goto done
+      goto cleanup
     case _ = <-signalch:
-      goto done
+      goto cleanup
     }
   }
 
-done:
+  cleanup:
   fmt.Println("SHUTTING DOWN...")
   close(ctrlch)
   close(signalch)

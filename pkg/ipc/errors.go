@@ -1,13 +1,6 @@
-package event
+package ipc
 
 import "fmt"
-
-type AlreadyStartedError struct {
-}
-
-func (e *AlreadyStartedError) Error() string {
-	return "Additional events cannot be subscribed to once the Subscription has started"
-}
 
 type MonitoringError struct {
 	err error

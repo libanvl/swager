@@ -1,5 +1,7 @@
 package ipc
 
+// FindChild uses a breadth-first search. Returns the first
+// child Node matching the predicate, or nil if none found
 func (n *Node) FindChild(predicate func(*Node) bool) *Node {
 	if predicate(n) {
 		return n

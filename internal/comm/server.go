@@ -5,26 +5,31 @@ import (
 
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc"
-	"github.com/libanvl/swager/pkg/ipc/event"
 )
 
 type Swager struct {
 	cfg        *ServerConfig
 	opts       *core.Options
 	initalized map[string]core.Block
+	Client *ipc.Client
+	Sub    *ipc.Subscription
 }
 
 type ServerConfig struct {
 	Blocks core.BlockRegistry
-	Client ipc.Client
-	Sub    event.Subscription
 	Ctrl   chan<- *ControlArgs
 }
 
 func CreateServer(cfg *ServerConfig, opts *core.Options) *Swager {
 	swager := new(Swager)
 	swager.cfg = cfg
-  swager.opts = opts
+	swager.opts = opts
+  client, err := ipc.Connect()
+  if err != nil {
+    panic("failed connecting to sway")
+  }
+  swager.Client = client
+  swager.Sub = ipc.Subscribe()
 	return swager
 }
 
@@ -35,21 +40,21 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 	}
 
 	block := blockfac()
-	if err := block.Init(s.cfg.Client, s.cfg.Sub, s.opts); err != nil {
+	if err := block.Init(s.Client, s.Sub, s.opts); err != nil {
 		return &BlockInitializationError{err, args.Block}
 	}
 
-  if s.opts.Debug {
-    s.opts.Log <- fmt.Sprintf("[%s](%s) initalized", args.Block, args.Tag)
-  }
+	if s.opts.Debug {
+		s.opts.Log <- fmt.Sprintf("[%s](%s) initalized", args.Block, args.Tag)
+	}
 
 	if err := block.Configure(args.Config); err != nil {
 		return &BlockInitializationError{err, args.Block}
 	}
 
-  if s.opts.Debug {
-    s.opts.Log <- fmt.Sprintf("[%s](%s) configured", args.Block, args.Tag)
-  }
+	if s.opts.Debug {
+		s.opts.Log <- fmt.Sprintf("[%s](%s) configured", args.Block, args.Tag)
+	}
 
 	if s.initalized == nil {
 		s.initalized = map[string]core.Block{args.Tag: block}
@@ -81,26 +86,42 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 }
 
 func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
-  switch args.Command {
-  case PingServer:
-    reply.Success = true
-    return nil
-  case RunServer:
+	switch args.Command {
+	case PingServer:
+		reply.Success = true
+		return nil
+	case RunServer:
+		if s.opts.Debug {
+			s.opts.Log <- "running initalized blocks"
+		}
+		for _, block := range s.initalized {
+			go block.Run()
+		}
+		go s.Sub.Run()
+		reply.Success = true
+		return nil
+  case ResetServer:
     if s.opts.Debug {
-      s.opts.Log <- "running initalized blocks"
+      s.opts.Log <- "resetting initalized blocks"
     }
-    for _, block := range s.initalized {
-      go block.Run()
+    s.Sub.Close()
+    s.Sub = ipc.Subscribe()
+    for tag, block := range s.initalized {
+      block.Close()
+      delete(s.initalized, tag)
+      s.opts.Log <- fmt.Sprintf("(%s) closed", tag)
     }
-    go s.cfg.Sub.Start()
     reply.Success = true
     return nil
-  case ExitServer:
-    s.cfg.Sub.Close()
-    fallthrough
-  default:
-    s.cfg.Ctrl <- args
-  }
+	case ExitServer:
+    for _, block := range s.initalized {
+      block.Close()
+    }
+		s.Sub.Close()
+		fallthrough
+	default:
+		s.cfg.Ctrl <- args
+	}
 	reply.Success = true
 	return nil
 }
