@@ -8,17 +8,26 @@ import (
 	"sync"
 )
 
-func Subscribe() *Subscription {
+// Subscribe to sway-ipc events.
+// A single Subscription can listen for multiple event types,
+// but each event payload is yielded on the corresponding
+// typed channel.
+func Subscribe() (*Subscription, error) {
+  c, err := Connect()
+  if err != nil {
+    return nil, err
+  }
+
+  return SubscribeCustom(c), nil
+}
+
+func SubscribeCustom(client *Client) *Subscription {
 	s := new(Subscription)
 	s.evts = make([]EventPayloadType, 0)
 	s.errors = make(chan error, 3)
 	return s
 }
 
-// Subscription subscribes to sway-ipc events.
-// A single Subscription can listen for multiple event types,
-// but each event payload is yielded on the corresponding
-// typed channel.
 type Subscription struct {
 	client    *Client
 	evts      []EventPayloadType

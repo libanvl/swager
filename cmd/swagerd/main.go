@@ -32,7 +32,7 @@ func main() {
   blocks.RegisterBlocks()
   log.Printf("registered blocks: %v\n", len(core.Blocks))
 
-  logch := make(chan string, 10)
+  logch := make(chan core.BlockLogMessage, 10)
   ctrlch := make(chan *comm.ControlArgs)
   opts := core.Options{Debug: *debug, Log: logch}
   config := comm.ServerConfig{
@@ -40,7 +40,10 @@ func main() {
     Ctrl:   ctrlch,
   }
 
-  server := comm.CreateServer(&config, &opts)
+  server, err := comm.CreateServer(&config, &opts)
+  if err != nil {
+    log.Fatal("failed creating server:", err)
+  }
 
   signalch := make(chan os.Signal)
   signal.Notify(signalch, os.Interrupt)

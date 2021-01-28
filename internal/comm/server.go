@@ -1,8 +1,6 @@
 package comm
 
 import (
-	"fmt"
-
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc"
 )
@@ -20,17 +18,21 @@ type ServerConfig struct {
 	Ctrl   chan<- *ControlArgs
 }
 
-func CreateServer(cfg *ServerConfig, opts *core.Options) *Swager {
-	swager := new(Swager)
-	swager.cfg = cfg
-	swager.opts = opts
+func CreateServer(cfg *ServerConfig, opts *core.Options) (*Swager, error) {
   client, err := ipc.Connect()
   if err != nil {
-    panic("failed connecting to sway")
+    return nil, err
   }
+  sub, err := ipc.Subscribe()
+  if err != nil {
+    return nil, err
+  }
+	swager := new(Swager)
   swager.Client = client
-  swager.Sub = ipc.Subscribe()
-	return swager
+  swager.Sub = sub
+	swager.opts = opts
+	swager.cfg = cfg
+	return swager, nil
 }
 
 func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
@@ -45,7 +47,7 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 	}
 
 	if s.opts.Debug {
-		s.opts.Log <- fmt.Sprintf("[%s](%s) initalized", args.Block, args.Tag)
+		s.opts.Log.Messagef("server", "<%s>(%s) initalized", args.Block, args.Tag)
 	}
 
 	if err := block.Configure(args.Config); err != nil {
@@ -53,7 +55,7 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 	}
 
 	if s.opts.Debug {
-		s.opts.Log <- fmt.Sprintf("[%s](%s) configured", args.Block, args.Tag)
+		s.opts.Log.Messagef("server", "<%s>(%s) configured", args.Block, args.Tag)
 	}
 
 	if s.initalized == nil {
@@ -88,11 +90,12 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 	switch args.Command {
 	case PingServer:
+    s.opts.Log.Message("server", "pong")
 		reply.Success = true
 		return nil
 	case RunServer:
 		if s.opts.Debug {
-			s.opts.Log <- "running initalized blocks"
+			s.opts.Log.Message("server", "running initalized blocks")
 		}
 		for _, block := range s.initalized {
 			go block.Run()
@@ -102,14 +105,18 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 		return nil
   case ResetServer:
     if s.opts.Debug {
-      s.opts.Log <- "resetting initalized blocks"
+      s.opts.Log.Message("server", "resetting initalized blocks")
     }
     s.Sub.Close()
-    s.Sub = ipc.Subscribe()
+    sub, err := ipc.Subscribe()
+    if err != nil {
+      return err
+    }
+    s.Sub = sub
     for tag, block := range s.initalized {
       block.Close()
       delete(s.initalized, tag)
-      s.opts.Log <- fmt.Sprintf("(%s) closed", tag)
+      s.opts.Log.Messagef("server", "(%s) closed", tag)
     }
     reply.Success = true
     return nil

@@ -57,7 +57,7 @@ func (e *ExecNew) Configure(args []string) error {
 	}
 
   if e.opts.Debug {
-    e.opts.Log <- fmt.Sprintf("min: %d max: %d", min, max)
+    e.opts.Log.Messagef("execnew", "min: %d max: %d", min, max)
   }
 
 	e.min = min
@@ -92,7 +92,7 @@ func (e *ExecNew) Receive(args []string) error {
   next := curr + 1
   cmd := strings.Join(args, " ")
   if e.opts.Debug {
-    e.opts.Log <- fmt.Sprintf("running command on workspace: %d, '%s'", next, cmd)
+    e.opts.Log.Messagef("execnew", "running command on workspace: %d, '%s'", next, cmd)
   }
 
 	res, err := e.client.Command(fmt.Sprintf("workspace number %d, exec %s", curr+1, cmd))

@@ -2,7 +2,6 @@ package blocks
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/libanvl/swager/internal/core"
@@ -71,7 +70,7 @@ func (i *InitSpawn) Receive(args []string) error {
   i.spawnsmx.Unlock()
 
   if i.opts.Debug {
-    i.opts.Log <- fmt.Sprintf("added spawn for workspace init: %s, '%s'", args[0], args[1])
+    i.opts.Log.Messagef("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
   }
 
 	return nil
@@ -91,13 +90,13 @@ func (i *InitSpawn) Run() {
     i.spawnsmx.Unlock()
 		if !ok {
       if i.opts.Debug {
-        i.opts.Log <- fmt.Sprintf("no spawn registered for workspace: '%s'", evt.Current.Name)
+        i.opts.Log.Messagef("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
       }
 			continue
 		}
 
     if i.opts.Debug {
-      i.opts.Log <- fmt.Sprintf("running spawn command: '%s'", cmd)
+      i.opts.Log.Messagef("initspawn", "running spawn command: '%s'", cmd)
     }
 		i.client.Command(cmd)
 	}

@@ -1,17 +1,23 @@
 package main
 
 import (
-  "log"
-  "net"
-  "net/rpc"
-  "os"
-  "os/signal"
-  "time"
+	"fmt"
+	"log"
+	"net"
+	"net/rpc"
+	"os"
+	"os/signal"
+	"time"
 
-  "github.com/libanvl/swager/internal/comm"
+	"github.com/libanvl/swager/internal/comm"
 )
 
 func main() {
+  if len(os.Args) < 2 {
+    fmt.Println(usage())
+    return
+  }
+
   addr, err := comm.GetSwagerSocket()
   if err != nil {
     log.Fatal("swager socket error:", err)
@@ -55,8 +61,8 @@ func main() {
     args = &comm.SendToTagArgs{Tag: os.Args[2], Args: os.Args[3:]}
     break
   case "config":
-    if len(os.Args) != 3 {
-      log.Fatal("config requires a subcommand")
+    if len(os.Args) < 3 {
+      log.Fatal("config requires a subcommand\n", usage())
     }
     switch os.Args[2] {
     case "commit":
@@ -70,11 +76,11 @@ func main() {
       args = &comm.ControlArgs{Command: comm.ResetServer}
       break
     default:
-      log.Fatal("unknown method:", os.Args[1], os.Args[2])
+      log.Fatalf("unknown method: %s %s\n %s", os.Args[1], os.Args[2], usage())
     }
   case "server":
-    if len(os.Args) != 3 {
-      log.Fatal("server requires a subcommand")
+    if len(os.Args) < 3 {
+      log.Fatal("server requires a subcommand\n", usage())
     }
     switch os.Args[2]{
     case "exit":
@@ -88,10 +94,10 @@ func main() {
       args = &comm.ControlArgs{Command: comm.PingServer}
       break
     default:
-      log.Fatal("unknown method:", os.Args[1], os.Args[2])
+      log.Fatalf("unknown method: %s %s\n%s", os.Args[1], os.Args[2], usage())
     }
   default:
-    log.Fatal("unknown method:", os.Args[1])
+    log.Fatalf("unknown method: %s\n%s", os.Args[1], usage())
   }
 
   if err := client.Call(string(op), args, reply); err != nil {
@@ -99,4 +105,49 @@ func main() {
   } else {
     log.Printf("%#v\n", reply)
   }
+}
+
+func usage() string {
+  help := `swayctl <method> [<submethod>] [args...]
+
+  methods:
+    init   - initialze a new block instance
+    send   - send a command to an initialized block instance
+    config - send a configuration command
+    server - send a server control command
+
+  init <tagname> <blockname> [args...]
+
+    <tagname> is a user-provided name for a specific block instance
+    <blockname> is the registered name for a block type
+    [args...] are the initialization arguments for the block instance
+      see the block documentation for the supported args
+
+    examples:
+      init mytiler tiler
+      init myexecnew execnew 1 10
+
+  send <tagname> arg0 [args...]
+
+    <tagname> is the user-provided name for a block instance
+    arg0 [args...] are the argument to send to the block instance
+      not all block types support receiving arguments using send
+      see the block documentation for the supported args
+
+    examples:
+      send myexecnew "exec alacritty"
+
+  config <submethod>
+
+    submethods:
+      commit - notify the server that user configuration is complete, and to start monitoring events
+      reset  - notify the server to stop monitoring events, and close all configured blocks
+
+  server <submethod>
+
+    submethods:
+      ping - ping the server
+      exit - notify the server to shutdown`
+
+  return help
 }
