@@ -62,6 +62,7 @@ type WindowProperties struct {
 }
 
 type NodeType string
+
 const (
 	RootNode        NodeType = "root"
 	OutputNode      NodeType = "output"

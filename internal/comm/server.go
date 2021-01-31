@@ -6,11 +6,11 @@ import (
 )
 
 type Swager struct {
+	Client     *ipc.Client
+	Sub        *ipc.Subscription
 	cfg        *ServerConfig
 	opts       *core.Options
 	initalized map[string]core.Block
-	Client *ipc.Client
-	Sub    *ipc.Subscription
 }
 
 type ServerConfig struct {
@@ -19,19 +19,20 @@ type ServerConfig struct {
 }
 
 func CreateServer(cfg *ServerConfig, opts *core.Options) (*Swager, error) {
-  client, err := ipc.Connect()
-  if err != nil {
-    return nil, err
-  }
-  sub, err := ipc.Subscribe()
-  if err != nil {
-    return nil, err
-  }
+	client, err := ipc.Connect()
+	if err != nil {
+		return nil, err
+	}
+	sub, err := ipc.Subscribe()
+	if err != nil {
+		return nil, err
+	}
 	swager := new(Swager)
-  swager.Client = client
-  swager.Sub = sub
+	swager.Client = client
+	swager.Sub = sub
 	swager.opts = opts
 	swager.cfg = cfg
+
 	return swager, nil
 }
 
@@ -46,17 +47,13 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 		return &BlockInitializationError{err, args.Block}
 	}
 
-	if s.opts.Debug {
-		s.opts.Log.Messagef("server", "<%s>(%s) initalized", args.Block, args.Tag)
-	}
+	s.opts.Log.Infof("server", "<%s>(%s) initalized", args.Block, args.Tag)
 
 	if err := block.Configure(args.Config); err != nil {
 		return &BlockInitializationError{err, args.Block}
 	}
 
-	if s.opts.Debug {
-		s.opts.Log.Messagef("server", "<%s>(%s) configured", args.Block, args.Tag)
-	}
+	s.opts.Log.Defaultf("server", "<%s>(%s) configured", args.Block, args.Tag)
 
 	if s.initalized == nil {
 		s.initalized = map[string]core.Block{args.Tag: block}
@@ -83,6 +80,8 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 		return &TagReceiveError{err, args.Tag}
 	}
 
+	s.opts.Log.Debugf("server", "(%s) received args: %v", args.Tag, args.Args)
+
 	reply.Success = true
 	return nil
 }
@@ -90,45 +89,43 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 	switch args.Command {
 	case PingServer:
-    s.opts.Log.Message("server", "pong")
+		s.opts.Log.Default("server", "pong")
 		reply.Success = true
 		return nil
 	case RunServer:
-		if s.opts.Debug {
-			s.opts.Log.Message("server", "running initalized blocks")
-		}
+		s.opts.Log.Default("server", "running initalized blocks")
 		for _, block := range s.initalized {
 			go block.Run()
 		}
 		go s.Sub.Run()
 		reply.Success = true
 		return nil
-  case ResetServer:
-    if s.opts.Debug {
-      s.opts.Log.Message("server", "resetting initalized blocks")
-    }
-    s.Sub.Close()
-    sub, err := ipc.Subscribe()
-    if err != nil {
-      return err
-    }
-    s.Sub = sub
-    for tag, block := range s.initalized {
-      block.Close()
-      delete(s.initalized, tag)
-      s.opts.Log.Messagef("server", "(%s) closed", tag)
-    }
-    reply.Success = true
-    return nil
-	case ExitServer:
-    for _, block := range s.initalized {
-      block.Close()
-    }
+	case ResetServer:
+		s.opts.Log.Default("server", "resetting initalized blocks")
 		s.Sub.Close()
+		sub, err := ipc.Subscribe()
+		if err != nil {
+			return err
+		}
+		s.Sub = sub
+		closeAllBlocks(s)
+		reply.Success = true
+		return nil
+	case ExitServer:
+		s.Sub.Close()
+		closeAllBlocks(s)
 		fallthrough
 	default:
 		s.cfg.Ctrl <- args
 	}
 	reply.Success = true
 	return nil
+}
+
+func closeAllBlocks(s *Swager) {
+	for tag, block := range s.initalized {
+		block.Close()
+		delete(s.initalized, tag)
+		s.opts.Log.Defaultf("server", "(%s) closed", tag)
+	}
 }

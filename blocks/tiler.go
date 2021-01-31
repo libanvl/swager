@@ -33,34 +33,26 @@ func (t *Tiler) Run() {
 		}
 
 		if evt.Container.Type == ipc.FloatingConNode {
-			if t.opts.Debug {
-				t.opts.Log.Message("tiler", "Focused window is floating")
-			}
 			continue
 		}
 
-		t.opts.Log.Messagef("tiler", "Window: %v, Layout: %v", evt.Container.Name, evt.Container.Layout)
+		t.opts.Log.Debugf("tiler", "Window: %v, Layout: %v", evt.Container.Name, evt.Container.Layout)
 
 		root, err := t.client.Tree()
 		if err != nil {
-			t.opts.Log.Messagef("tiler", "Fatal error: GetTree failed: %v", err)
+			t.opts.Log.Defaultf("tiler", "Fatal error: GetTree failed: %v", err)
 			break
 		}
 
 		parent := core.FindParent(root, evt.Container.ID)
 		if parent == nil {
-			if t.opts.Debug {
-				t.opts.Log.Message("tiler", "Window has no parent")
-			}
+			t.opts.Log.Debug("tiler", "Window has no parent")
 			continue
 		}
 
-		t.opts.Log.Messagef("tiler", "Parent: %v, Layout: %v", parent.Type, parent.Layout)
+		t.opts.Log.Debugf("tiler", "Parent: %v, Layout: %v", parent.Type, parent.Layout)
 
 		if parent.Layout == "stacked" || parent.Layout == "tabbed" {
-			if t.opts.Debug {
-				t.opts.Log.Messagef("tiler", "Parent layout is excluded: %v", parent.Layout)
-			}
 			continue
 		}
 
@@ -69,26 +61,21 @@ func (t *Tiler) Run() {
 			newlayout = "splitv"
 		}
 
-		if t.opts.Debug {
-			t.opts.Log.Messagef("tiler", "Selecting layout: %v", newlayout)
-		}
+		t.opts.Log.Debugf("tiler", "Selecting layout: %v", newlayout)
 
 		if parent.Layout != newlayout {
 			s, err := t.client.Command(newlayout)
 			if err != nil {
-				t.opts.Log.Messagef("tiler", "Error sending command: %v", err)
+				t.opts.Log.Defaultf("tiler", "Error sending command: %v", err)
 			}
 			if !(s[0].Success) {
-				t.opts.Log.Messagef("tiler", "sway error: %v", s[0].Error)
+				t.opts.Log.Defaultf("tiler", "sway error: %v", s[0].Error)
 			}
 		}
 	}
 
-	if t.opts.Debug {
-		t.opts.Log.Message("tiler", "Tiling channel closed")
-	}
+	t.opts.Log.Debug("tiler", "Tiling channel closed")
 }
 
 func (t *Tiler) Close() {
-	t.opts.Log.Message("tiler", "Closing Block")
 }

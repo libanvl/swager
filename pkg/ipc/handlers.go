@@ -40,3 +40,42 @@ func (s *Subscription) handleShutdown(buf []byte) error {
 
 	return nil
 }
+
+func (s *Subscription) handleBindingMode(buf []byte) error {
+	bmc := new(BindingModeChange)
+	if err := json.Unmarshal(buf, bmc); err != nil {
+		return err
+	}
+
+	go func(ch chan<- *BindingModeChange) {
+		ch <- bmc
+	}(s.bindingmode)
+
+	return nil
+}
+
+func (s *Subscription) handleBinding(buf []byte) error {
+	bc := new(BindingChange)
+	if err := json.Unmarshal(buf, bc); err != nil {
+		return err
+	}
+
+	go func(ch chan<- *BindingChange) {
+		ch <- bc
+	}(s.binding)
+
+	return nil
+}
+
+func (s *Subscription) handleTick(buf []byte) error {
+	t := new(Tick)
+	if err := json.Unmarshal(buf, t); err != nil {
+		return err
+	}
+
+	go func(ch chan<- *Tick) {
+		ch <- t
+	}(s.tick)
+
+	return nil
+}

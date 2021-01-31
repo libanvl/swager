@@ -10,32 +10,12 @@ import (
 
 type workspace string
 
-/*
-InitSpawn sends a command to sway when a workspace with a given name is created.
-
-Registration
-
-The block is registered with the name 'initspawn'
-
-Configuration
-
-InitSpawn has no init configuration:
-
-  swayctrl init <tagname> initspawn
-
-Send
-
-Workspace name, command pairs are registered using the send command:
-
-  swayctrl send <tagname> 2 "exec alacritty"
-  swayctrl send <tagname> 3 "exec chromium --new-window"
-*/
 type InitSpawn struct {
 	client        core.Client
-  opts          *core.Options
+	opts          *core.Options
 	workspaceevts <-chan *ipc.WorkspaceChange
 	spawns        map[workspace]string
-  spawnsmx      sync.Mutex
+	spawnsmx      sync.Mutex
 }
 
 func init() {
@@ -45,10 +25,10 @@ func init() {
 
 func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options) error {
 	i.client = client
-  i.opts = opts
+	i.opts = opts
 	i.workspaceevts = sub.WorkspaceChanges()
 	i.spawns = map[workspace]string{}
-  i.spawnsmx = sync.Mutex{}
+	i.spawnsmx = sync.Mutex{}
 	return nil
 }
 
@@ -58,20 +38,18 @@ func (i *InitSpawn) Configure(args []string) error {
 
 func (i *InitSpawn) Receive(args []string) error {
 	if len(args) != 2 {
-    return errors.New("requires two arguments: <workspace> <command>")
+		return errors.New("requires two arguments: <workspace> <command>")
 	}
 
-  i.spawnsmx.Lock()
+	i.spawnsmx.Lock()
 	if i.spawns == nil {
 		i.spawns = map[workspace]string{workspace(args[0]): args[1]}
 	} else {
 		i.spawns[workspace(args[0])] = args[1]
 	}
-  i.spawnsmx.Unlock()
+	i.spawnsmx.Unlock()
 
-  if i.opts.Debug {
-    i.opts.Log.Messagef("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
-  }
+	i.opts.Log.Infof("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
 
 	return nil
 }
@@ -85,19 +63,15 @@ func (i *InitSpawn) Run() {
 			continue
 		}
 
-    i.spawnsmx.Lock()
+		i.spawnsmx.Lock()
 		cmd, ok := i.spawns[workspace(evt.Current.Name)]
-    i.spawnsmx.Unlock()
+		i.spawnsmx.Unlock()
 		if !ok {
-      if i.opts.Debug {
-        i.opts.Log.Messagef("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
-      }
+			i.opts.Log.Debugf("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
 			continue
 		}
 
-    if i.opts.Debug {
-      i.opts.Log.Messagef("initspawn", "running spawn command: '%s'", cmd)
-    }
+		i.opts.Log.Debugf("initspawn", "running spawn command: '%s'", cmd)
 		i.client.Command(cmd)
 	}
 }

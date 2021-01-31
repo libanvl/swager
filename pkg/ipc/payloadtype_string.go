@@ -8,26 +8,26 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[RunCommandMessage-0]
-	_ = x[GetWorkspacesMessage-1]
-	_ = x[SubscribeMessage-2]
-	_ = x[GetOutputsMessage-3]
-	_ = x[GetTreeMessage-4]
-	_ = x[GetMarksMessage-5]
-	_ = x[GetBarConfigMessage-6]
-	_ = x[GetVersionMessage-7]
-	_ = x[GetBindingModesMessage-8]
-	_ = x[GetConfigMessage-9]
-	_ = x[SendTickMessage-10]
-	_ = x[SyncMessage-11]
-	_ = x[GetBindingStateMessage-12]
-	_ = x[GetInputsMessage-100]
-	_ = x[GetSeatsMessage-101]
+	_ = x[runCommandMessage-0]
+	_ = x[getWorkspacesMessage-1]
+	_ = x[subscribeMessage-2]
+	_ = x[getOutputsMessage-3]
+	_ = x[getTreeMessage-4]
+	_ = x[getMarksMessage-5]
+	_ = x[getBarConfigMessage-6]
+	_ = x[getVersionMessage-7]
+	_ = x[getBindingModesMessage-8]
+	_ = x[getConfigMessage-9]
+	_ = x[sendTickMessage-10]
+	_ = x[syncMessage-11]
+	_ = x[getBindingStateMessage-12]
+	_ = x[getInputsMessage-100]
+	_ = x[getSeatsMessage-101]
 }
 
 const (
-	_payloadType_name_0 = "RunCommandMessageGetWorkspacesMessageSubscribeMessageGetOutputsMessageGetTreeMessageGetMarksMessageGetBarConfigMessageGetVersionMessageGetBindingModesMessageGetConfigMessageSendTickMessageSyncMessageGetBindingStateMessage"
-	_payloadType_name_1 = "GetInputsMessageGetSeatsMessage"
+	_payloadType_name_0 = "runCommandMessagegetWorkspacesMessagesubscribeMessagegetOutputsMessagegetTreeMessagegetMarksMessagegetBarConfigMessagegetVersionMessagegetBindingModesMessagegetConfigMessagesendTickMessagesyncMessagegetBindingStateMessage"
+	_payloadType_name_1 = "getInputsMessagegetSeatsMessage"
 )
 
 var (

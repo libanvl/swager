@@ -2,36 +2,38 @@ package ipc
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=payloadType
 type payloadType uint32
+
 const (
-	RunCommandMessage      payloadType = 0
-	GetWorkspacesMessage   payloadType = 1
-	SubscribeMessage       payloadType = 2
-	GetOutputsMessage      payloadType = 3
-	GetTreeMessage         payloadType = 4
-	GetMarksMessage        payloadType = 5
-	GetBarConfigMessage    payloadType = 6
-	GetVersionMessage      payloadType = 7
-	GetBindingModesMessage payloadType = 8
-	GetConfigMessage       payloadType = 9
-	SendTickMessage        payloadType = 10
-	SyncMessage            payloadType = 11
-	GetBindingStateMessage payloadType = 12
-	GetInputsMessage       payloadType = 100
-	GetSeatsMessage        payloadType = 101
+	runCommandMessage      payloadType = 0
+	getWorkspacesMessage   payloadType = 1
+	subscribeMessage       payloadType = 2
+	getOutputsMessage      payloadType = 3
+	getTreeMessage         payloadType = 4
+	getMarksMessage        payloadType = 5
+	getBarConfigMessage    payloadType = 6
+	getVersionMessage      payloadType = 7
+	getBindingModesMessage payloadType = 8
+	getConfigMessage       payloadType = 9
+	sendTickMessage        payloadType = 10
+	syncMessage            payloadType = 11
+	getBindingStateMessage payloadType = 12
+	getInputsMessage       payloadType = 100
+	getSeatsMessage        payloadType = 101
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=EventPayloadType
 type EventPayloadType payloadType
+
 const (
-	WorkspaceEvent         EventPayloadType = 0x80000000
-	ModeEvent              EventPayloadType = 0x80000002
-	WindowEvent            EventPayloadType = 0x80000003
-	BarconfigUpdateEvent   EventPayloadType = 0x80000004
-	BindingEvent           EventPayloadType = 0x80000005
-	ShutdownEvent          EventPayloadType = 0x80000006
-	TickEvent              EventPayloadType = 0x80000007
-	BarStatusUpdateEvent   EventPayloadType = 0x80000014
-	InputEvent             EventPayloadType = 0x80000015
+	WorkspaceEvent       EventPayloadType = 0x80000000
+	ModeEvent            EventPayloadType = 0x80000002
+	WindowEvent          EventPayloadType = 0x80000003
+	BarconfigUpdateEvent EventPayloadType = 0x80000004
+	BindingEvent         EventPayloadType = 0x80000005
+	ShutdownEvent        EventPayloadType = 0x80000006
+	TickEvent            EventPayloadType = 0x80000007
+	BarStatusUpdateEvent EventPayloadType = 0x80000014
+	InputEvent           EventPayloadType = 0x80000015
 )
 
 var magic = [6]byte{'i', '3', '-', 'i', 'p', 'c'}

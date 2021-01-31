@@ -37,6 +37,33 @@ type WindowChange struct {
 	Container Node             `json:"container"`
 }
 
+type BindingModeChange struct {
+	Change      string
+	PangoMarkup bool `json:"pango_markup"`
+}
+
+type BindingChangeType string
+
+const (
+	RunBinding BindingChangeType = "run"
+)
+
+type InputType string
+
+const (
+	KeyboardInput InputType = "keyboard"
+	MouseInput    InputType = "mouse"
+)
+
+type BindingChange struct {
+	Change         BindingChangeType `json:"change"`
+	Command        string            `json:"command"`
+	EventStateMask []string          `json:"event_state_mask"`
+	InputCode      int               `json:"input_code"`
+	Symbol         string            `json:"symbol,omitempty"`
+	InputType      InputType         `json:"input_type"`
+}
+
 type ShutdownChangeType string
 
 const (
@@ -45,4 +72,9 @@ const (
 
 type ShutdownChange struct {
 	Change ShutdownChangeType
+}
+
+type Tick struct {
+	First   bool
+	Payload string
 }

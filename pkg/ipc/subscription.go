@@ -3,7 +3,6 @@ package ipc
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 )
@@ -13,29 +12,34 @@ import (
 // but each event payload is yielded on the corresponding
 // typed channel.
 func Subscribe() (*Subscription, error) {
-  c, err := Connect()
-  if err != nil {
-    return nil, err
-  }
+	c, err := Connect()
+	if err != nil {
+		return nil, err
+	}
 
-  return SubscribeCustom(c), nil
+	return SubscribeCustom(c), nil
 }
 
 func SubscribeCustom(client *Client) *Subscription {
 	s := new(Subscription)
-	s.evts = make([]EventPayloadType, 0)
 	s.errors = make(chan error, 3)
+	s.client = client
+	s.running = false
+
 	return s
 }
 
 type Subscription struct {
-	client    *Client
-	evts      []EventPayloadType
-	errors    chan error
-	startmx   sync.Mutex
-	workspace chan *WorkspaceChange
-	window    chan *WindowChange
-	shutdown  chan *ShutdownChange
+	client      *Client
+	errors      chan error
+	clientmx    sync.Mutex
+	running     bool
+	workspace   chan *WorkspaceChange
+	bindingmode chan *BindingModeChange
+	window      chan *WindowChange
+	binding     chan *BindingChange
+	shutdown    chan *ShutdownChange
+	tick        chan *Tick
 }
 
 func (s *Subscription) Close() error {
@@ -44,12 +48,24 @@ func (s *Subscription) Close() error {
 			close(s.workspace)
 		}
 
+		if s.bindingmode != nil {
+			close(s.bindingmode)
+		}
+
 		if s.window != nil {
 			close(s.window)
 		}
 
+		if s.binding != nil {
+			close(s.binding)
+		}
+
 		if s.shutdown != nil {
 			close(s.shutdown)
+		}
+
+		if s.tick != nil {
+			close(s.tick)
 		}
 
 		err := s.client.Close()
@@ -66,68 +82,60 @@ func (s *Subscription) Errors() <-chan error {
 	return s.errors
 }
 
-func (s *Subscription) IsStarted() bool {
-	s.startmx.Lock()
-	defer s.startmx.Unlock()
-
-	return s.client != nil
-}
-
-// WindowChanges returns the channel that WindowChange events are yielded on.
-func (s *Subscription) WindowChanges() <-chan *WindowChange {
-	if !s.IsStarted() && s.window == nil {
-		s.window = make(chan *WindowChange)
-		s.evts = append(s.evts, WindowEvent)
-	}
-	return s.window
-}
-
 // WorkspaceChanges returns the channel that WorkspaceChange events are yielded on.
 func (s *Subscription) WorkspaceChanges() <-chan *WorkspaceChange {
-	if !s.IsStarted() && s.workspace == nil {
+	if !s.running && s.workspace == nil {
 		s.workspace = make(chan *WorkspaceChange)
-		s.evts = append(s.evts, WorkspaceEvent)
+		s.subscribeEvent(WorkspaceEvent)
 	}
 	return s.workspace
 }
 
+func (s *Subscription) BindingModeChanges() <-chan *BindingModeChange {
+	if !s.running && s.bindingmode == nil {
+		s.bindingmode = make(chan *BindingModeChange)
+		s.subscribeEvent(ModeEvent)
+	}
+	return s.bindingmode
+}
+
+// WindowChanges returns the channel that WindowChange events are yielded on.
+func (s *Subscription) WindowChanges() <-chan *WindowChange {
+	if !s.running && s.window == nil {
+		s.window = make(chan *WindowChange)
+		s.subscribeEvent(WindowEvent)
+	}
+	return s.window
+}
+
+func (s *Subscription) BindingChanges() <-chan *BindingChange {
+	if !s.running && s.binding == nil {
+		s.binding = make(chan *BindingChange)
+		s.subscribeEvent(BindingEvent)
+	}
+	return s.binding
+}
+
 // ShutdownChanges returns the channel that ShutdownChange events are yielded on.
 func (s *Subscription) ShutdownChanges() <-chan *ShutdownChange {
-	if !s.IsStarted() && s.shutdown == nil {
+	if !s.running && s.shutdown == nil {
 		s.shutdown = make(chan *ShutdownChange)
-		s.evts = append(s.evts, ShutdownEvent)
+		s.subscribeEvent(ShutdownEvent)
 	}
 	return s.shutdown
 }
 
-// Start starts the Subscription monitoring for subscribed events.
-// Before calling Start, call the method for each event type this Subscription
-// instance should monitor, at least once.
-// After Start is called, calling an event method for the first time will return nil.
-func (s *Subscription) Run() error {
-	s.startmx.Lock()
-	defer s.startmx.Unlock()
-
-	if len(s.evts) < 1 {
-		return errors.New("No events subscribed")
+func (s *Subscription) Ticks() <-chan *Tick {
+	if !s.running && s.tick == nil {
+		s.tick = make(chan *Tick)
+		s.subscribeEvent(TickEvent)
 	}
+	return s.tick
+}
 
-	client, err := Connect()
-	if err != nil {
-		return fmt.Errorf("Failed to connect client: %v", err)
-	}
-
-	res, err := client.Subscribe(s.evts...)
-	if err != nil {
-		return fmt.Errorf("Failed to subscribe to : %v", err)
-	}
-
-	if !res.Success {
-		return errors.New("sway: failed to subscribe to ")
-	}
-
-	s.client = client
-
+func (s *Subscription) Run() {
+	s.clientmx.Lock()
+	defer s.clientmx.Unlock()
 	for s.client != nil {
 		var h header
 		if err := binary.Read(s.client, binary.LittleEndian, &h); err != nil {
@@ -135,7 +143,7 @@ func (s *Subscription) Run() error {
 		}
 
 		if !validMagic(h.Magic) {
-			return nil
+			continue
 		}
 
 		buf := make([]byte, int(h.PayloadLength))
@@ -146,13 +154,23 @@ func (s *Subscription) Run() error {
 		}
 
 		switch EventPayloadType(h.PayloadType) {
+		case WorkspaceEvent:
+			if err := s.handleWorkspace(buf); err != nil {
+				s.errors <- &MonitoringError{err}
+			}
+			break
+		case ModeEvent:
+			if err := s.handleBindingMode(buf); err != nil {
+				s.errors <- &MonitoringError{err}
+			}
+			break
 		case WindowEvent:
 			if err := s.handleWindow(buf); err != nil {
 				s.errors <- &MonitoringError{err}
 			}
 			break
-		case WorkspaceEvent:
-			if err := s.handleWorkspace(buf); err != nil {
+		case BindingEvent:
+			if err := s.handleBinding(buf); err != nil {
 				s.errors <- &MonitoringError{err}
 			}
 			break
@@ -161,11 +179,26 @@ func (s *Subscription) Run() error {
 				s.errors <- &MonitoringError{err}
 			}
 			break
+		case TickEvent:
+			if err := s.handleTick(buf); err != nil {
+				s.errors <- &MonitoringError{err}
+			}
+			break
 		default:
 			s.errors <- &MonitoringError{
 				errors.New("Unknown type")}
 		}
 	}
+}
 
-	return nil
+func (s *Subscription) subscribeEvent(event EventPayloadType) {
+	s.clientmx.Lock()
+	defer s.clientmx.Unlock()
+	res, err := s.client.Subscribe(event)
+	if err != nil {
+		s.errors <- &MonitoringError{err}
+	}
+	if !res.Success {
+		s.errors <- &MonitoringError{errors.New("sway error: could not subscribe to event")}
+	}
 }
