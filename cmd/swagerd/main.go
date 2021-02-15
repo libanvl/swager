@@ -14,7 +14,7 @@ import (
 	"github.com/libanvl/swager/internal/core"
 )
 
-var loglevel core.BlockLogLevel
+var loglevel core.LogLevel
 
 func main() {
 	flag.Var(&loglevel, "log", "the log level")
@@ -36,10 +36,10 @@ func main() {
 	blocks.RegisterBlocks()
 	log.Printf("registered blocks: %v\n", len(core.Blocks))
 
-	logch := make(chan core.BlockLogMessage, 10)
-  creqch := make(chan core.ServerControlRequest)
+	logch := make(chan core.LogMessage, 10)
+	creqch := make(chan core.ServerControlRequest)
 	ctrlch := make(chan *comm.ControlArgs)
-  opts := core.Options{Log: logch, Server: creqch}
+	opts := core.Options{Log: logch, Server: creqch}
 	config := comm.ServerConfig{
 		Blocks: core.Blocks,
 		Ctrl:   ctrlch,
@@ -68,17 +68,15 @@ func main() {
 
 	for {
 		select {
-    case r := <-creqch:
-      if r == core.ExitRequest {
-        go server.Control(&comm.ControlArgs{Command: comm.ExitServer}, &comm.Reply{})
-      }
-      if r == core.ReloadRequest {
-        go server.Control(&comm.ControlArgs{Command: comm.ResetServer}, &comm.Reply{})
-      }
-		case l := <-logch:
-			if l.Level() <= loglevel {
-				log.Println(l)
+		case r := <-creqch:
+			if r == core.ExitRequest {
+				go server.Control(&comm.ControlArgs{Command: comm.ExitServer}, &comm.Reply{})
 			}
+			if r == core.ReloadRequest {
+				go server.Control(&comm.ControlArgs{Command: comm.ResetServer}, &comm.Reply{})
+			}
+		case l := <-logch:
+      log.Println(l)
 		case cmdargs := <-ctrlch:
 			if cmdargs.Command != comm.ExitServer {
 				continue
@@ -94,5 +92,5 @@ cleanup:
 	close(ctrlch)
 	close(signalch)
 	close(logch)
-	fmt.Println("GOODBYE")
+	fmt.Println("...GOODBYE")
 }

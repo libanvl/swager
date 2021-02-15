@@ -17,14 +17,15 @@ func Subscribe() (*Subscription, error) {
 		return nil, err
 	}
 
-	return SubscribeCustom(c), nil
+	return SubscribeCustom(c, 10), nil
 }
 
-func SubscribeCustom(client *Client) *Subscription {
+func SubscribeCustom(client *Client, chbufsize int) *Subscription {
 	s := new(Subscription)
 	s.errors = make(chan error, 3)
 	s.client = client
 	s.running = false
+  s.chbufsize = chbufsize
 
 	return s
 }
@@ -34,6 +35,7 @@ type Subscription struct {
 	errors      chan error
 	clientmx    sync.Mutex
 	running     bool
+  chbufsize   int
 	workspace   chan *WorkspaceChange
 	bindingmode chan *BindingModeChange
 	window      chan *WindowChange
@@ -85,7 +87,7 @@ func (s *Subscription) Errors() <-chan error {
 // WorkspaceChanges returns the channel that WorkspaceChange events are yielded on.
 func (s *Subscription) WorkspaceChanges() <-chan *WorkspaceChange {
 	if !s.running && s.workspace == nil {
-		s.workspace = make(chan *WorkspaceChange)
+		s.workspace = make(chan *WorkspaceChange, s.chbufsize)
 		s.subscribeEvent(WorkspaceEvent)
 	}
 	return s.workspace
@@ -93,7 +95,7 @@ func (s *Subscription) WorkspaceChanges() <-chan *WorkspaceChange {
 
 func (s *Subscription) BindingModeChanges() <-chan *BindingModeChange {
 	if !s.running && s.bindingmode == nil {
-		s.bindingmode = make(chan *BindingModeChange)
+		s.bindingmode = make(chan *BindingModeChange, s.chbufsize)
 		s.subscribeEvent(ModeEvent)
 	}
 	return s.bindingmode
@@ -102,7 +104,7 @@ func (s *Subscription) BindingModeChanges() <-chan *BindingModeChange {
 // WindowChanges returns the channel that WindowChange events are yielded on.
 func (s *Subscription) WindowChanges() <-chan *WindowChange {
 	if !s.running && s.window == nil {
-		s.window = make(chan *WindowChange)
+		s.window = make(chan *WindowChange, s.chbufsize)
 		s.subscribeEvent(WindowEvent)
 	}
 	return s.window
@@ -110,7 +112,7 @@ func (s *Subscription) WindowChanges() <-chan *WindowChange {
 
 func (s *Subscription) BindingChanges() <-chan *BindingChange {
 	if !s.running && s.binding == nil {
-		s.binding = make(chan *BindingChange)
+		s.binding = make(chan *BindingChange, s.chbufsize)
 		s.subscribeEvent(BindingEvent)
 	}
 	return s.binding
@@ -119,7 +121,7 @@ func (s *Subscription) BindingChanges() <-chan *BindingChange {
 // ShutdownChanges returns the channel that ShutdownChange events are yielded on.
 func (s *Subscription) ShutdownChanges() <-chan *ShutdownChange {
 	if !s.running && s.shutdown == nil {
-		s.shutdown = make(chan *ShutdownChange)
+		s.shutdown = make(chan *ShutdownChange, 1)
 		s.subscribeEvent(ShutdownEvent)
 	}
 	return s.shutdown
@@ -127,7 +129,7 @@ func (s *Subscription) ShutdownChanges() <-chan *ShutdownChange {
 
 func (s *Subscription) Ticks() <-chan *Tick {
 	if !s.running && s.tick == nil {
-		s.tick = make(chan *Tick)
+		s.tick = make(chan *Tick, s.chbufsize)
 		s.subscribeEvent(TickEvent)
 	}
 	return s.tick

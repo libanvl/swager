@@ -1,6 +1,7 @@
 package comm
 
 import (
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"math"
@@ -8,7 +9,15 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	"github.com/libanvl/swager/internal/core"
 )
+
+func init() {
+  gob.Register(InitBlockArgs{})
+  gob.Register(SendToTagArgs{})
+  gob.Register(SetTagLogArgs{})
+  gob.Register(ControlArgs{})
+}
 
 func GetSwagerSocket() (string, error) {
 	swaysock, present := os.LookupEnv("SWAYSOCK")
@@ -33,6 +42,7 @@ type SwagerMethod string
 const (
 	InitBlock SwagerMethod = "Swager.InitBlock"
 	SendToTag SwagerMethod = "Swager.SendToTag"
+	SetTagLog SwagerMethod = "Swager.SetTagLog"
 	Control   SwagerMethod = "Swager.Control"
 )
 
@@ -50,14 +60,19 @@ const (
 )
 
 type InitBlockArgs struct {
-	Tag    string
-	Block  string
-	Config []string
+	Tag   string
+	Block string
+	Args  []string
 }
 
 type SendToTagArgs struct {
 	Tag  string
 	Args []string
+}
+
+type SetTagLogArgs struct {
+  Tag   string
+  Level core.LogLevel
 }
 
 type ControlArgs struct {
@@ -66,5 +81,6 @@ type ControlArgs struct {
 }
 
 type Reply struct {
+  Args    SwagerArgs
 	Success bool
 }

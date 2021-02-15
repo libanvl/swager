@@ -14,15 +14,18 @@ type ExecNew struct {
 	opts   *core.Options
 	min    int
 	max    int
+	loglevel core.LogLevel
 }
 
-func (e *ExecNew) Init(client core.Client, sub core.Sub, opts *core.Options) error {
+func init() {
+	var _ core.Block = (*ExecNew)(nil)
+  var _ core.Receiver = (*ExecNew)(nil)
+}
+
+func (e *ExecNew) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
 	e.client = client
 	e.opts = opts
-	return nil
-}
 
-func (e *ExecNew) Configure(args []string) error {
 	if len(args) != 2 {
 		return errors.New("2 arguments are required: <min> <max>")
 	}
@@ -33,18 +36,15 @@ func (e *ExecNew) Configure(args []string) error {
 		return errors.New("Arguments must be ints")
 	}
 
-	e.opts.Log.Debugf("execnew", "min: %d max: %d", min, max)
+	e.opts.Log.Printf("execnew", "min: %d max: %d", min, max)
 
 	e.min = min
 	e.max = max
-
 	return nil
 }
 
-func (e *ExecNew) Run() {
-}
-
-func (e *ExecNew) Close() {
+func (e *ExecNew) SetLogLevel(level core.LogLevel) {
+	e.loglevel = level
 }
 
 func (e *ExecNew) Receive(args []string) error {
@@ -52,8 +52,11 @@ func (e *ExecNew) Receive(args []string) error {
 	if err != nil {
 		return err
 	}
+	if e.loglevel.Debug() {
+		e.opts.Log.Printf("execnew", "got workspaces. count: %d", len(ws))
+	}
 
-	curr := e.min
+	curr := e.min - 1
 	for _, w := range ws {
 		if w.Num > e.max {
 			continue
@@ -66,14 +69,20 @@ func (e *ExecNew) Receive(args []string) error {
 
 	next := curr + 1
 	cmd := strings.Join(args, " ")
-	e.opts.Log.Debugf("execnew", "running command on workspace: %d, '%s'", next, cmd)
 
-	res, err := e.client.Command(fmt.Sprintf("workspace number %d, exec %s", curr+1, cmd))
+	if e.loglevel.Debug() {
+		e.opts.Log.Printf("execnew", "running command on workspace: %d, '%s'", next, cmd)
+	}
+
+	res, err := e.client.Command(fmt.Sprintf("workspace number %d, exec %s", next, cmd))
 	if err != nil {
 		return err
 	}
 
 	for _, r := range res {
+		if e.loglevel.Debug() {
+			e.opts.Log.Printf("execnew", "result: %#v", r)
+		}
 		if !r.Success {
 			return errors.New(r.Error)
 		}
