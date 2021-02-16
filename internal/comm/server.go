@@ -8,6 +8,7 @@ import (
 type Swager struct {
 	Client     *ipc.Client
 	Sub        *ipc.Subscription
+	subdemux   core.Sub
 	cfg        *ServerConfig
 	opts       *core.Options
 	initalized map[string]core.Block
@@ -28,15 +29,16 @@ func CreateServer(cfg *ServerConfig, opts *core.Options) (*Swager, error) {
 		return nil, err
 	}
 
-  go func() {
-    for serr := range sub.Errors() {
-      opts.Log.Printf("server", "%#v", serr)
-    }
-  }()
+	go func() {
+		for serr := range sub.Errors() {
+			opts.Log.Printf("server", "%#v", serr)
+		}
+	}()
 
 	swager := new(Swager)
 	swager.Client = client
 	swager.Sub = sub
+	swager.subdemux = SubDemux(sub)
 	swager.opts = opts
 	swager.cfg = cfg
 
@@ -50,7 +52,7 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 	}
 
 	block := blockfac()
-	if err := block.Init(s.Client, s.Sub, s.opts, args.Args...); err != nil {
+	if err := block.Init(s.Client, s.subdemux, s.opts, args.Args...); err != nil {
 		return &BlockInitializationError{err, args.Block}
 	}
 
@@ -62,7 +64,7 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 		s.initalized[args.Tag] = block
 	}
 
-  reply.Args = args
+	reply.Args = args
 	reply.Success = true
 	return nil
 }
@@ -84,24 +86,24 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 
 	s.opts.Log.Printf("server", "(%s) received args: %v", args.Tag, args.Args)
 
-  reply.Args = args
+	reply.Args = args
 	reply.Success = true
 	return nil
 }
 
 func (s *Swager) SetTagLog(args *SetTagLogArgs, reply *Reply) error {
-  block, ok := s.initalized[args.Tag]
-  if !ok {
-    return &TagNotFoundError{args.Tag}
-  }
+	block, ok := s.initalized[args.Tag]
+	if !ok {
+		return &TagNotFoundError{args.Tag}
+	}
 
-  block.SetLogLevel(args.Level)
+	block.SetLogLevel(args.Level)
 
-  s.opts.Log.Printf("server", "(%s) set log level: %v", args.Tag, args.Level)
+	s.opts.Log.Printf("server", "(%s) set log level: %v", args.Tag, args.Level)
 
-  reply.Args = args
-  reply.Success = true
-  return nil
+	reply.Args = args
+	reply.Success = true
+	return nil
 }
 
 func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
@@ -113,13 +115,13 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 	case RunServer:
 		s.opts.Log.Print("server", "running initalized blocks")
 		for _, block := range s.initalized {
-      runner, ok := block.(core.Runner)
-      if ok {
-			  go runner.Run()
-      }
+			runner, ok := block.(core.Runner)
+			if ok {
+				go runner.Run()
+			}
 		}
 		go s.Sub.Run()
-    reply.Args = args
+		reply.Args = args
 		reply.Success = true
 		return nil
 	case ResetServer:
@@ -131,7 +133,8 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 			return err
 		}
 		s.Sub = sub
-    reply.Args = args
+		s.subdemux = SubDemux(sub)
+		reply.Args = args
 		reply.Success = true
 		return nil
 	case ExitServer:
@@ -142,17 +145,17 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 		s.cfg.Ctrl <- args
 	}
 
-  reply.Args = args
+	reply.Args = args
 	reply.Success = true
 	return nil
 }
 
 func closeAllBlocks(s *Swager) {
 	for tag, block := range s.initalized {
-    closer, ok := block.(core.Closer)
-    if ok {
-      closer.Close()
-    }
+		closer, ok := block.(core.Closer)
+		if ok {
+			closer.Close()
+		}
 		delete(s.initalized, tag)
 		s.opts.Log.Printf("server", "(%s) closed", tag)
 	}

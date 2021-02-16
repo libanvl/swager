@@ -1,100 +1,100 @@
 package blocks
 
 import (
-  "errors"
-  "sync"
+	"errors"
+	"sync"
 
-  "github.com/libanvl/swager/internal/core"
-  "github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/internal/core"
+	"github.com/libanvl/swager/pkg/ipc"
 )
 
 type workspace string
 
 type InitSpawn struct {
-  client        core.Client
-  opts          *core.Options
-  workspaceevts <-chan *ipc.WorkspaceChange
-  spawns        map[workspace]string
-  spawnsmx      sync.Mutex
-  loglevel      core.LogLevel
+	client        core.Client
+	opts          *core.Options
+	workspaceevts <-chan *ipc.WorkspaceChange
+	spawns        map[workspace]string
+	spawnsmx      sync.Mutex
+	loglevel      core.LogLevel
 }
 
 func init() {
-  var _ core.Block = (*InitSpawn)(nil)
-  var _ core.Receiver = (*InitSpawn)(nil)
+	var _ core.Block = (*InitSpawn)(nil)
+	var _ core.Receiver = (*InitSpawn)(nil)
 }
 
 func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
-  i.client = client
-  i.opts = opts
-  i.workspaceevts = sub.WorkspaceChanges()
-  i.spawns = map[workspace]string{}
-  i.spawnsmx = sync.Mutex{}
-  return nil
+	i.client = client
+	i.opts = opts
+	i.workspaceevts = sub.WorkspaceChanges()
+	i.spawns = map[workspace]string{}
+	i.spawnsmx = sync.Mutex{}
+	return nil
 }
 
 func (i *InitSpawn) SetLogLevel(level core.LogLevel) {
-  i.loglevel = level
+	i.loglevel = level
 }
 
 func (i *InitSpawn) Receive(args []string) error {
-  if len(args) != 2 {
-    return errors.New("requires two arguments: <workspace> <command>")
-  }
+	if len(args) != 2 {
+		return errors.New("requires two arguments: <workspace> <command>")
+	}
 
-  i.spawnsmx.Lock()
-  defer i.spawnsmx.Unlock()
+	i.spawnsmx.Lock()
+	defer i.spawnsmx.Unlock()
 
-  if i.spawns == nil {
-    i.spawns = map[workspace]string{workspace(args[0]): args[1]}
-  } else {
-    i.spawns[workspace(args[0])] = args[1]
-  }
+	if i.spawns == nil {
+		i.spawns = map[workspace]string{workspace(args[0]): args[1]}
+	} else {
+		i.spawns[workspace(args[0])] = args[1]
+	}
 
-  if i.loglevel.Info() {
-    i.opts.Log.Printf("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
-  }
-  return nil
+	if i.loglevel.Info() {
+		i.opts.Log.Printf("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
+	}
+	return nil
 }
 
 func (i *InitSpawn) Run() {
-  for evt := range i.workspaceevts {
-    if i.loglevel.Debug() {
-      i.opts.Log.Printf("initspawn", "got workspace event: %#v, %s", evt.Change, evt.Current.Name)
-    }
-    if evt.Change != ipc.InitWorkspace && evt.Change != ipc.FocusWorkspace {
-      continue
-    }
+	for evt := range i.workspaceevts {
+		if i.loglevel.Debug() {
+			i.opts.Log.Printf("initspawn", "got workspace event: %#v, %s", evt.Change, evt.Current.Name)
+		}
+		if evt.Change != ipc.InitWorkspace {
+			continue
+		}
 
-    i.spawnsmx.Lock()
-    cmd, ok := i.spawns[workspace(evt.Current.Name)]
-    i.spawnsmx.Unlock()
-    if !ok {
-      if i.loglevel.Debug() {
-        i.opts.Log.Printf("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
-      }
-      continue
-    }
+		i.spawnsmx.Lock()
+		cmd, ok := i.spawns[workspace(evt.Current.Name)]
+		i.spawnsmx.Unlock()
+		if !ok {
+			if i.loglevel.Debug() {
+				i.opts.Log.Printf("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
+			}
+			continue
+		}
 
-    if i.loglevel.Debug() {
-      i.opts.Log.Printf("initspawn", "nodes count: %d", len(evt.Current.Nodes))
-    }
-    if len(evt.Current.Nodes) < 1 {
+		if i.loglevel.Debug() {
+			i.opts.Log.Printf("initspawn", "nodes count: %d", len(evt.Current.Nodes))
+		}
+		if len(evt.Current.Nodes) < 1 {
 
-      if i.loglevel.Debug() {
-        i.opts.Log.Printf("initspawn", "running spawn command: '%s'", cmd)
-      }
+			if i.loglevel.Debug() {
+				i.opts.Log.Printf("initspawn", "running spawn command: '%s'", cmd)
+			}
 
-      res, err := i.client.Command(cmd)
-      if err != nil {
-        i.opts.Log.Print("initspawn", err.Error())
-      }
+			res, err := i.client.Command(cmd)
+			if err != nil {
+				i.opts.Log.Print("initspawn", err.Error())
+			}
 
-      for _, r := range res {
-        if !r.Success {
-          i.opts.Log.Print("initspawn", r.Error)
-        }
-      }
-    }
-  }
+			for _, r := range res {
+				if !r.Success {
+					i.opts.Log.Print("initspawn", r.Error)
+				}
+			}
+		}
+	}
 }

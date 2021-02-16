@@ -11,7 +11,7 @@ type def struct {
 	flag string
 }
 
-type defList []def
+type defList []*def
 
 type parser struct {
 	Defs    defList
@@ -22,12 +22,12 @@ type TokenList []string
 type TokenSet []TokenList
 type TokenMap map[string]TokenSet
 
-func Parser(heads ...def) *parser {
+func Parser(heads ...*def) *parser {
 	return &parser{Defs: heads, Present: make([]string, 0)}
 }
 
-func Def(flag string) def {
-	return def{flag: flag}
+func Def(flag string) *def {
+	return &def{flag: flag}
 }
 
 func (p parser) Parse(args ...string) TokenMap {
@@ -102,7 +102,7 @@ func contains(ss []string, arg string) bool {
 func (dl defList) findByFlag(flag string) (*def, bool) {
 	for _, d := range dl {
 		if flag == d.flag {
-			return &d, true
+			return d, true
 		}
 	}
 

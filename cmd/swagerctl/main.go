@@ -36,7 +36,7 @@ func main() {
 		for {
 			addr, err := comm.GetSwagerSocket()
 			if err != nil {
-				log.Print("swager socket error:", err)
+				log.Print("swager socket retry: ", err)
 				continue
 			}
 			ch <- addr
@@ -49,17 +49,17 @@ func main() {
 	case addr = <-sokch:
 		close(sokch)
 		break
-	case <-time.After(1 * time.Second):
+	case <-time.After(2 * time.Second):
 		log.Fatal("swager socket timeout error")
 	}
 
 	if _, err := os.Stat(addr); os.IsNotExist(err) {
-		log.Fatal("swager daemon error:", err)
+		log.Fatal("swager daemon error: ", err)
 	}
 
 	conn, err := net.DialTimeout("unix", addr, time.Second*1)
 	if err != nil {
-		log.Fatal("failed dialing rpc:", err)
+		log.Fatal("failed dialing rpc: ", err)
 	}
 
 	signalch := make(chan os.Signal, 3)

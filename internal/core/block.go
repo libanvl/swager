@@ -6,23 +6,23 @@ type Block interface {
 }
 
 type Runner interface {
-  Run()
+	Run()
 }
 
 type Closer interface {
-  Close()
+	Close()
 }
 
 type Receiver interface {
 	Receive(args []string) error
 }
 
-type JsonReader interface {
-	ReadJson(args []string) (string, error)
+type JsonReporter interface {
+	Report(args []string) (string, error)
 }
 
 type BlockRunnerCloser interface {
-  Block
-  Runner
-  Closer
+	Block
+	Runner
+	Closer
 }

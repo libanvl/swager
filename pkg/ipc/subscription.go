@@ -3,6 +3,7 @@ package ipc
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 )
@@ -25,7 +26,7 @@ func SubscribeCustom(client *Client, chbufsize int) *Subscription {
 	s.errors = make(chan error, 3)
 	s.client = client
 	s.running = false
-  s.chbufsize = chbufsize
+	s.chbufsize = chbufsize
 
 	return s
 }
@@ -35,7 +36,7 @@ type Subscription struct {
 	errors      chan error
 	clientmx    sync.Mutex
 	running     bool
-  chbufsize   int
+	chbufsize   int
 	workspace   chan *WorkspaceChange
 	bindingmode chan *BindingModeChange
 	window      chan *WindowChange
@@ -141,7 +142,8 @@ func (s *Subscription) Run() {
 	for s.client != nil {
 		var h header
 		if err := binary.Read(s.client, binary.LittleEndian, &h); err != nil {
-			s.errors <- &MonitoringError{err}
+			s.errors <- &MonitoringError{
+				fmt.Errorf("run binary.Read: %s", err)}
 		}
 
 		if !validMagic(h.Magic) {
@@ -151,39 +153,46 @@ func (s *Subscription) Run() {
 		buf := make([]byte, int(h.PayloadLength))
 		_, err := io.ReadFull(s.client, buf)
 		if err != nil {
-			s.errors <- &MonitoringError{err}
+			s.errors <- &MonitoringError{
+				fmt.Errorf("run io.ReadFull: %s", err)}
 			continue
 		}
 
 		switch EventPayloadType(h.PayloadType) {
 		case WorkspaceEvent:
 			if err := s.handleWorkspace(buf); err != nil {
-				s.errors <- &MonitoringError{err}
+				s.errors <- &MonitoringError{
+					fmt.Errorf("run s.handleWorkspace: %s", err)}
 			}
 			break
 		case ModeEvent:
 			if err := s.handleBindingMode(buf); err != nil {
-				s.errors <- &MonitoringError{err}
+				s.errors <- &MonitoringError{
+					fmt.Errorf("run s.handleBindingMode: %s", err)}
 			}
 			break
 		case WindowEvent:
 			if err := s.handleWindow(buf); err != nil {
-				s.errors <- &MonitoringError{err}
+				s.errors <- &MonitoringError{
+					fmt.Errorf("run s.handleWindow: %s", err)}
 			}
 			break
 		case BindingEvent:
 			if err := s.handleBinding(buf); err != nil {
-				s.errors <- &MonitoringError{err}
+				s.errors <- &MonitoringError{
+					fmt.Errorf("run s.handleBinding: %s", err)}
 			}
 			break
 		case ShutdownEvent:
 			if err := s.handleShutdown(buf); err != nil {
-				s.errors <- &MonitoringError{err}
+				s.errors <- &MonitoringError{
+					fmt.Errorf("run s.handleShutdown: %s", err)}
 			}
 			break
 		case TickEvent:
 			if err := s.handleTick(buf); err != nil {
-				s.errors <- &MonitoringError{err}
+				s.errors <- &MonitoringError{
+					fmt.Errorf("run s.handleTick: %s", err)}
 			}
 			break
 		default:
@@ -198,7 +207,7 @@ func (s *Subscription) subscribeEvent(event EventPayloadType) {
 	defer s.clientmx.Unlock()
 	res, err := s.client.Subscribe(event)
 	if err != nil {
-		s.errors <- &MonitoringError{err}
+		s.errors <- &MonitoringError{fmt.Errorf("subscribeEvent s.client.Subscribe: %s", err)}
 	}
 	if !res.Success {
 		s.errors <- &MonitoringError{errors.New("sway error: could not subscribe to event")}
