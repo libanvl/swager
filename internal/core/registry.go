@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-type BlockFactory func() Block
+type BlockFactory func() BlockInitializer
 
 type BlockRegistry map[string]BlockFactory
 

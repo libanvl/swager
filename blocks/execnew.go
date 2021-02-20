@@ -10,16 +10,16 @@ import (
 )
 
 type ExecNew struct {
-	client core.Client
-	opts   *core.Options
-	min    int
-	max    int
+	client   core.Client
+	opts     *core.Options
+	min      int
+	max      int
 	loglevel core.LogLevel
 }
 
 func init() {
-	var _ core.Block = (*ExecNew)(nil)
-  var _ core.Receiver = (*ExecNew)(nil)
+	var _ core.BlockInitializer = (*ExecNew)(nil)
+	var _ core.Receiver = (*ExecNew)(nil)
 }
 
 func (e *ExecNew) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {

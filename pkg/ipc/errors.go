@@ -7,7 +7,7 @@ type MonitoringError struct {
 }
 
 func (e *MonitoringError) Error() string {
-	return fmt.Sprintf("Error from subscription: %v", e.err)
+	return fmt.Sprintf("subscription: %v", e.err)
 }
 
 func (e *MonitoringError) Unwrap() error {

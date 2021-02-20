@@ -8,9 +8,11 @@ func (s *Subscription) handleWindow(buf []byte) error {
 		return err
 	}
 
-	go func(ch chan<- *WindowChange) {
-		ch <- wc
-	}(s.window)
+	for _, h := range s.windows {
+		go func(handler WindowChangeHandler) {
+			handler.WindowChange(*wc)
+		}(h)
+	}
 
 	return nil
 }
@@ -21,9 +23,11 @@ func (s *Subscription) handleWorkspace(buf []byte) error {
 		return err
 	}
 
-	go func(ch chan<- *WorkspaceChange) {
-		ch <- wc
-	}(s.workspace)
+	for _, h := range s.workspaces {
+		go func(handler WorkspaceChangeHandler) {
+			handler.WorkspaceChange(*wc)
+		}(h)
+	}
 
 	return nil
 }
@@ -34,9 +38,11 @@ func (s *Subscription) handleShutdown(buf []byte) error {
 		return err
 	}
 
-	go func(ch chan<- *ShutdownChange) {
-		ch <- sc
-	}(s.shutdown)
+	for _, h := range s.shutdowns {
+		go func(handler ShutdownChangeHandler) {
+			handler.ShutdownChange(*sc)
+		}(h)
+	}
 
 	return nil
 }
@@ -47,9 +53,11 @@ func (s *Subscription) handleBindingMode(buf []byte) error {
 		return err
 	}
 
-	go func(ch chan<- *BindingModeChange) {
-		ch <- bmc
-	}(s.bindingmode)
+	for _, h := range s.bindingmodes {
+		go func(handler BindingModeChangeHandler) {
+			handler.BindingModeChange(*bmc)
+		}(h)
+	}
 
 	return nil
 }
@@ -60,9 +68,11 @@ func (s *Subscription) handleBinding(buf []byte) error {
 		return err
 	}
 
-	go func(ch chan<- *BindingChange) {
-		ch <- bc
-	}(s.binding)
+	for _, h := range s.bindings {
+		go func(handler BindingChangeHandler) {
+			handler.BindingChange(*bc)
+		}(h)
+	}
 
 	return nil
 }
@@ -73,9 +83,11 @@ func (s *Subscription) handleTick(buf []byte) error {
 		return err
 	}
 
-	go func(ch chan<- *Tick) {
-		ch <- t
-	}(s.tick)
+	for _, h := range s.ticks {
+		go func(handler TickHandler) {
+			handler.Tick(*t)
+		}(h)
+	}
 
 	return nil
 }

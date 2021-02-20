@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
 // Subscribe to sway-ipc events.
@@ -18,58 +19,101 @@ func Subscribe() (*Subscription, error) {
 		return nil, err
 	}
 
-	return SubscribeCustom(c, 10), nil
+	return SubscribeCustom(c), nil
 }
 
-func SubscribeCustom(client *Client, chbufsize int) *Subscription {
+func SubscribeCustom(client *Client) *Subscription {
 	s := new(Subscription)
-	s.errors = make(chan error, 3)
 	s.client = client
-	s.running = false
-	s.chbufsize = chbufsize
 
 	return s
 }
 
+type Cookie uint32
+
+var EmptyCookie = Cookie(0)
+
+type WorkspaceChangeHandler interface {
+	WorkspaceChange(WorkspaceChange)
+}
+
+type BindingModeChangeHandler interface {
+	BindingModeChange(BindingModeChange)
+}
+
+type WindowChangeHandler interface {
+	WindowChange(WindowChange)
+}
+
+type BindingChangeHandler interface {
+	BindingChange(BindingChange)
+}
+
+type ShutdownChangeHandler interface {
+	ShutdownChange(ShutdownChange)
+}
+
+type TickHandler interface {
+	Tick(Tick)
+}
+
 type Subscription struct {
-	client      *Client
-	errors      chan error
-	clientmx    sync.Mutex
-	running     bool
-	chbufsize   int
-	workspace   chan *WorkspaceChange
-	bindingmode chan *BindingModeChange
-	window      chan *WindowChange
-	binding     chan *BindingChange
-	shutdown    chan *ShutdownChange
-	tick        chan *Tick
+	client         *Client
+	errors         []chan<- error
+	clientmx       sync.Mutex
+	currcookie     uint32
+	workspaces     map[Cookie]WorkspaceChangeHandler
+	bindingmodes   map[Cookie]BindingModeChangeHandler
+	windows        map[Cookie]WindowChangeHandler
+	bindings       map[Cookie]BindingChangeHandler
+	shutdowns      map[Cookie]ShutdownChangeHandler
+	ticks          map[Cookie]TickHandler
+	workspacesmx   sync.Mutex
+	bindingmodesmx sync.Mutex
+	windowsmx      sync.Mutex
+	bindingsmx     sync.Mutex
+	shutdownsmx    sync.Mutex
+	ticksmx        sync.Mutex
 }
 
 func (s *Subscription) Close() error {
 	if s.client != nil {
-		if s.workspace != nil {
-			close(s.workspace)
-		}
 
-		if s.bindingmode != nil {
-			close(s.bindingmode)
-		}
+		doLocked(&s.workspacesmx, func() {
+			for k := range s.workspaces {
+				delete(s.workspaces, k)
+			}
+		})
 
-		if s.window != nil {
-			close(s.window)
-		}
+		doLocked(&s.bindingmodesmx, func() {
+			for k := range s.bindingmodes {
+				delete(s.bindingmodes, k)
+			}
+		})
 
-		if s.binding != nil {
-			close(s.binding)
-		}
+		doLocked(&s.windowsmx, func() {
+			for k := range s.windows {
+				delete(s.windows, k)
+			}
+		})
 
-		if s.shutdown != nil {
-			close(s.shutdown)
-		}
+		doLocked(&s.bindingsmx, func() {
+			for k := range s.bindings {
+				delete(s.bindings, k)
+			}
+		})
 
-		if s.tick != nil {
-			close(s.tick)
-		}
+		doLocked(&s.shutdownsmx, func() {
+			for k := range s.shutdowns {
+				delete(s.shutdowns, k)
+			}
+		})
+
+		doLocked(&s.ticksmx, func() {
+			for k := range s.ticks {
+				delete(s.ticks, k)
+			}
+		})
 
 		err := s.client.Close()
 		s.client = nil
@@ -81,59 +125,163 @@ func (s *Subscription) Close() error {
 
 // Errors returns the channel that subscription errors are yielded on.
 // All errors from this channel are of type MonitoringError.
-func (s *Subscription) Errors() <-chan error {
-	return s.errors
+func (s *Subscription) Errors(ch chan<- error) {
+	if s.errors == nil {
+		s.errors = []chan<- error{ch}
+	} else {
+		s.errors = append(s.errors, ch)
+	}
+}
+
+func (s *Subscription) RemoveHandler(c Cookie) {
+	s.clientmx.Lock()
+	defer s.clientmx.Unlock()
+
+	if err := s.checkClient(); err != nil {
+		return
+	}
+
+	delete(s.workspaces, c)
+	delete(s.bindingmodes, c)
+	delete(s.windows, c)
+	delete(s.bindings, c)
+	delete(s.shutdowns, c)
+	delete(s.ticks, c)
 }
 
 // WorkspaceChanges returns the channel that WorkspaceChange events are yielded on.
-func (s *Subscription) WorkspaceChanges() <-chan *WorkspaceChange {
-	if !s.running && s.workspace == nil {
-		s.workspace = make(chan *WorkspaceChange, s.chbufsize)
-		s.subscribeEvent(WorkspaceEvent)
+func (s *Subscription) WorkspaceChanges(h WorkspaceChangeHandler) (Cookie, error) {
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Lock()
+
+	if err := s.checkClient(); err != nil {
+		return EmptyCookie, err
 	}
-	return s.workspace
+
+	cookie := Cookie(atomic.AddUint32(&s.currcookie, 1))
+
+	doLocked(&s.workspacesmx, func() {
+		if s.workspaces == nil {
+			s.workspaces = map[Cookie]WorkspaceChangeHandler{cookie: h}
+			s.subscribeEvent(WorkspaceEvent)
+		} else {
+			s.workspaces[cookie] = h
+		}
+	})
+
+	return cookie, nil
 }
 
-func (s *Subscription) BindingModeChanges() <-chan *BindingModeChange {
-	if !s.running && s.bindingmode == nil {
-		s.bindingmode = make(chan *BindingModeChange, s.chbufsize)
-		s.subscribeEvent(ModeEvent)
+func (s *Subscription) BindingModeChanges(h BindingModeChangeHandler) (Cookie, error) {
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Unlock()
+
+	if err := s.checkClient(); err != nil {
+		return EmptyCookie, err
 	}
-	return s.bindingmode
+
+	cookie := Cookie(atomic.AddUint32(&s.currcookie, 1))
+
+	doLocked(&s.bindingmodesmx, func() {
+		if s.bindingmodes == nil {
+			s.bindingmodes = map[Cookie]BindingModeChangeHandler{cookie: h}
+			s.subscribeEvent(ModeEvent)
+		} else {
+			s.bindingmodes[cookie] = h
+		}
+	})
+
+	return cookie, nil
 }
 
 // WindowChanges returns the channel that WindowChange events are yielded on.
-func (s *Subscription) WindowChanges() <-chan *WindowChange {
-	if !s.running && s.window == nil {
-		s.window = make(chan *WindowChange, s.chbufsize)
-		s.subscribeEvent(WindowEvent)
+func (s *Subscription) WindowChanges(h WindowChangeHandler) (Cookie, error) {
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Unlock()
+
+	if err := s.checkClient(); err != nil {
+		return EmptyCookie, err
 	}
-	return s.window
+
+	cookie := Cookie(atomic.AddUint32(&s.currcookie, 1))
+
+	doLocked(&s.windowsmx, func() {
+		if s.windows == nil {
+			s.windows = map[Cookie]WindowChangeHandler{cookie: h}
+			s.subscribeEvent(WindowEvent)
+		} else {
+			s.windows[cookie] = h
+		}
+	})
+
+	return cookie, nil
 }
 
-func (s *Subscription) BindingChanges() <-chan *BindingChange {
-	if !s.running && s.binding == nil {
-		s.binding = make(chan *BindingChange, s.chbufsize)
-		s.subscribeEvent(BindingEvent)
+func (s *Subscription) BindingChanges(h BindingChangeHandler) (Cookie, error) {
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Unlock()
+
+	if err := s.checkClient(); err != nil {
+		return EmptyCookie, err
 	}
-	return s.binding
+
+	cookie := Cookie(atomic.AddUint32(&s.currcookie, 1))
+
+	doLocked(&s.bindingsmx, func() {
+		if s.bindings == nil {
+			s.bindings = map[Cookie]BindingChangeHandler{cookie: h}
+			s.subscribeEvent(BindingEvent)
+		} else {
+			s.bindings[cookie] = h
+		}
+	})
+
+	return cookie, nil
 }
 
 // ShutdownChanges returns the channel that ShutdownChange events are yielded on.
-func (s *Subscription) ShutdownChanges() <-chan *ShutdownChange {
-	if !s.running && s.shutdown == nil {
-		s.shutdown = make(chan *ShutdownChange, 1)
-		s.subscribeEvent(ShutdownEvent)
+func (s *Subscription) ShutdownChanges(h ShutdownChangeHandler) (Cookie, error) {
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Unlock()
+
+	if err := s.checkClient(); err != nil {
+		return EmptyCookie, err
 	}
-	return s.shutdown
+
+	cookie := Cookie(atomic.AddUint32(&s.currcookie, 1))
+
+	doLocked(&s.shutdownsmx, func() {
+		if s.shutdowns == nil {
+			s.shutdowns = map[Cookie]ShutdownChangeHandler{cookie: h}
+			s.subscribeEvent(ShutdownEvent)
+		} else {
+			s.shutdowns[cookie] = h
+		}
+	})
+
+	return cookie, nil
 }
 
-func (s *Subscription) Ticks() <-chan *Tick {
-	if !s.running && s.tick == nil {
-		s.tick = make(chan *Tick, s.chbufsize)
-		s.subscribeEvent(TickEvent)
+func (s *Subscription) Ticks(h TickHandler) (Cookie, error) {
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Unlock()
+
+	if err := s.checkClient(); err != nil {
+		return EmptyCookie, nil
 	}
-	return s.tick
+
+	cookie := Cookie(atomic.AddUint32(&s.currcookie, 1))
+
+	doLocked(&s.ticksmx, func() {
+		if s.ticks == nil {
+			s.ticks = map[Cookie]TickHandler{cookie: h}
+			s.subscribeEvent(TickEvent)
+		} else {
+			s.ticks[cookie] = h
+		}
+	})
+
+	return cookie, nil
 }
 
 func (s *Subscription) Run() {
@@ -142,8 +290,9 @@ func (s *Subscription) Run() {
 	for s.client != nil {
 		var h header
 		if err := binary.Read(s.client, binary.LittleEndian, &h); err != nil {
-			s.errors <- &MonitoringError{
-				fmt.Errorf("run binary.Read: %s", err)}
+			s.sendError(&MonitoringError{
+				fmt.Errorf("run binary.Read: %s", err)})
+			continue
 		}
 
 		if !validMagic(h.Magic) {
@@ -153,63 +302,85 @@ func (s *Subscription) Run() {
 		buf := make([]byte, int(h.PayloadLength))
 		_, err := io.ReadFull(s.client, buf)
 		if err != nil {
-			s.errors <- &MonitoringError{
-				fmt.Errorf("run io.ReadFull: %s", err)}
+			s.sendError(&MonitoringError{
+				fmt.Errorf("run io.ReadFull: %s", err)})
 			continue
 		}
 
 		switch EventPayloadType(h.PayloadType) {
 		case WorkspaceEvent:
 			if err := s.handleWorkspace(buf); err != nil {
-				s.errors <- &MonitoringError{
-					fmt.Errorf("run s.handleWorkspace: %s", err)}
+				s.sendError(&MonitoringError{
+					fmt.Errorf("run s.handleWorkspace: %s", err)})
 			}
 			break
 		case ModeEvent:
 			if err := s.handleBindingMode(buf); err != nil {
-				s.errors <- &MonitoringError{
-					fmt.Errorf("run s.handleBindingMode: %s", err)}
+				s.sendError(&MonitoringError{
+					fmt.Errorf("run s.handleBindingMode: %s", err)})
 			}
 			break
 		case WindowEvent:
 			if err := s.handleWindow(buf); err != nil {
-				s.errors <- &MonitoringError{
-					fmt.Errorf("run s.handleWindow: %s", err)}
+				s.sendError(&MonitoringError{
+					fmt.Errorf("run s.handleWindow: %s", err)})
 			}
 			break
 		case BindingEvent:
 			if err := s.handleBinding(buf); err != nil {
-				s.errors <- &MonitoringError{
-					fmt.Errorf("run s.handleBinding: %s", err)}
+				s.sendError(&MonitoringError{
+					fmt.Errorf("run s.handleBinding: %s", err)})
 			}
 			break
 		case ShutdownEvent:
 			if err := s.handleShutdown(buf); err != nil {
-				s.errors <- &MonitoringError{
-					fmt.Errorf("run s.handleShutdown: %s", err)}
+				s.sendError(&MonitoringError{
+					fmt.Errorf("run s.handleShutdown: %s", err)})
 			}
 			break
 		case TickEvent:
 			if err := s.handleTick(buf); err != nil {
-				s.errors <- &MonitoringError{
-					fmt.Errorf("run s.handleTick: %s", err)}
+				s.sendError(&MonitoringError{
+					fmt.Errorf("run s.handleTick: %s", err)})
 			}
 			break
 		default:
-			s.errors <- &MonitoringError{
-				errors.New("Unknown type")}
+			s.sendError(&MonitoringError{
+				errors.New("Unknown type")})
 		}
 	}
 }
 
 func (s *Subscription) subscribeEvent(event EventPayloadType) {
-	s.clientmx.Lock()
-	defer s.clientmx.Unlock()
+	//	s.clientmx.Lock()
+	//	defer s.clientmx.Unlock()
 	res, err := s.client.Subscribe(event)
 	if err != nil {
-		s.errors <- &MonitoringError{fmt.Errorf("subscribeEvent s.client.Subscribe: %s", err)}
+		s.sendError(&MonitoringError{fmt.Errorf("subscribeEvent s.client.Subscribe: %s", err)})
 	}
 	if !res.Success {
-		s.errors <- &MonitoringError{errors.New("sway error: could not subscribe to event")}
+		s.sendError(&MonitoringError{errors.New("sway error: could not subscribe to event")})
 	}
+}
+
+func (s *Subscription) checkClient() error {
+	if s.client == nil {
+		return errors.New("Cannot add or remove handlers on a closed subscription")
+	}
+
+	return nil
+}
+
+func (s *Subscription) sendError(err error) {
+	for _, e := range s.errors {
+		go func(ch chan<- error) {
+			ch <- err
+		}(e)
+	}
+}
+
+func doLocked(m *sync.Mutex, action func()) {
+	m.Lock()
+	defer m.Unlock()
+	action()
 }

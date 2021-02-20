@@ -13,28 +13,73 @@ type workspace string
 type InitSpawn struct {
 	client        core.Client
 	opts          *core.Options
-	workspaceevts <-chan *ipc.WorkspaceChange
+	workspaceevts ipc.Cookie
 	spawns        map[workspace]string
 	spawnsmx      sync.Mutex
 	loglevel      core.LogLevel
 }
 
 func init() {
-	var _ core.Block = (*InitSpawn)(nil)
+	var _ core.BlockInitializer = (*InitSpawn)(nil)
 	var _ core.Receiver = (*InitSpawn)(nil)
 }
 
 func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
 	i.client = client
 	i.opts = opts
-	i.workspaceevts = sub.WorkspaceChanges()
 	i.spawns = map[workspace]string{}
 	i.spawnsmx = sync.Mutex{}
+	cookie, err := sub.WorkspaceChanges(i)
+	if err != nil {
+		return err
+	}
+
+	i.workspaceevts = cookie
 	return nil
 }
 
 func (i *InitSpawn) SetLogLevel(level core.LogLevel) {
 	i.loglevel = level
+}
+
+func (i *InitSpawn) WorkspaceChange(evt ipc.WorkspaceChange) {
+	if i.loglevel.Debug() {
+		i.opts.Log.Printf("initspawn", "got workspace event: %#v, %s", evt.Change, evt.Current.Name)
+	}
+	if evt.Change != ipc.InitWorkspace {
+		return
+	}
+
+	i.spawnsmx.Lock()
+	cmd, ok := i.spawns[workspace(evt.Current.Name)]
+	i.spawnsmx.Unlock()
+	if !ok {
+		if i.loglevel.Debug() {
+			i.opts.Log.Printf("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
+		}
+		return
+	}
+
+	if i.loglevel.Debug() {
+		i.opts.Log.Printf("initspawn", "nodes count: %d", len(evt.Current.Nodes))
+	}
+	if len(evt.Current.Nodes) < 1 {
+
+		if i.loglevel.Debug() {
+			i.opts.Log.Printf("initspawn", "running spawn command: '%s'", cmd)
+		}
+
+		res, err := i.client.Command(cmd)
+		if err != nil {
+			i.opts.Log.Print("initspawn", err.Error())
+		}
+
+		for _, r := range res {
+			if !r.Success {
+				i.opts.Log.Print("initspawn", r.Error)
+			}
+		}
+	}
 }
 
 func (i *InitSpawn) Receive(args []string) error {
@@ -55,46 +100,4 @@ func (i *InitSpawn) Receive(args []string) error {
 		i.opts.Log.Printf("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
 	}
 	return nil
-}
-
-func (i *InitSpawn) Run() {
-	for evt := range i.workspaceevts {
-		if i.loglevel.Debug() {
-			i.opts.Log.Printf("initspawn", "got workspace event: %#v, %s", evt.Change, evt.Current.Name)
-		}
-		if evt.Change != ipc.InitWorkspace {
-			continue
-		}
-
-		i.spawnsmx.Lock()
-		cmd, ok := i.spawns[workspace(evt.Current.Name)]
-		i.spawnsmx.Unlock()
-		if !ok {
-			if i.loglevel.Debug() {
-				i.opts.Log.Printf("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
-			}
-			continue
-		}
-
-		if i.loglevel.Debug() {
-			i.opts.Log.Printf("initspawn", "nodes count: %d", len(evt.Current.Nodes))
-		}
-		if len(evt.Current.Nodes) < 1 {
-
-			if i.loglevel.Debug() {
-				i.opts.Log.Printf("initspawn", "running spawn command: '%s'", cmd)
-			}
-
-			res, err := i.client.Command(cmd)
-			if err != nil {
-				i.opts.Log.Print("initspawn", err.Error())
-			}
-
-			for _, r := range res {
-				if !r.Success {
-					i.opts.Log.Print("initspawn", r.Error)
-				}
-			}
-		}
-	}
 }

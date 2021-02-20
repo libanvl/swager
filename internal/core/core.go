@@ -29,11 +29,11 @@ type Client interface {
 
 // Sub exports a limited set of methods for use by core.Block instances.
 type Sub interface {
-	WorkspaceChanges() <-chan *ipc.WorkspaceChange
-	WindowChanges() <-chan *ipc.WindowChange
-	BindingChanges() <-chan *ipc.BindingChange
-	ShutdownChanges() <-chan *ipc.ShutdownChange
-	Ticks() <-chan *ipc.Tick
+	WorkspaceChanges(ipc.WorkspaceChangeHandler) (ipc.Cookie, error)
+	WindowChanges(ipc.WindowChangeHandler) (ipc.Cookie, error)
+	BindingChanges(ipc.BindingChangeHandler) (ipc.Cookie, error)
+	ShutdownChanges(ipc.ShutdownChangeHandler) (ipc.Cookie, error)
+	Ticks(ipc.TickHandler) (ipc.Cookie, error)
 }
 
 type ServerControlRequest int8

@@ -1,6 +1,8 @@
 package comm
 
 import (
+	"io"
+
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc"
 )
@@ -8,10 +10,9 @@ import (
 type Swager struct {
 	Client     *ipc.Client
 	Sub        *ipc.Subscription
-	subdemux   core.Sub
 	cfg        *ServerConfig
 	opts       *core.Options
-	initalized map[string]core.Block
+	initalized map[string]core.BlockInitializer
 }
 
 type ServerConfig struct {
@@ -29,16 +30,17 @@ func CreateServer(cfg *ServerConfig, opts *core.Options) (*Swager, error) {
 		return nil, err
 	}
 
+	suberrors := make(chan error, 3)
 	go func() {
-		for serr := range sub.Errors() {
-			opts.Log.Printf("server", "%#v", serr)
+		for serr := range suberrors {
+			opts.Log.Printf("server", "%s", serr)
 		}
 	}()
+	sub.Errors(suberrors)
 
 	swager := new(Swager)
 	swager.Client = client
 	swager.Sub = sub
-	swager.subdemux = SubDemux(sub)
 	swager.opts = opts
 	swager.cfg = cfg
 
@@ -52,14 +54,14 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 	}
 
 	block := blockfac()
-	if err := block.Init(s.Client, s.subdemux, s.opts, args.Args...); err != nil {
+	if err := block.Init(s.Client, s.Sub, s.opts, args.Args...); err != nil {
 		return &BlockInitializationError{err, args.Block}
 	}
 
 	s.opts.Log.Printf("server", "<%s>(%s) configured", args.Block, args.Tag)
 
 	if s.initalized == nil {
-		s.initalized = map[string]core.Block{args.Tag: block}
+		s.initalized = map[string]core.BlockInitializer{args.Tag: block}
 	} else {
 		s.initalized[args.Tag] = block
 	}
@@ -85,8 +87,6 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 	}
 
 	s.opts.Log.Printf("server", "(%s) received args: %v", args.Tag, args.Args)
-
-	reply.Args = args
 	reply.Success = true
 	return nil
 }
@@ -126,20 +126,19 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 		return nil
 	case ResetServer:
 		s.opts.Log.Print("server", "resetting initalized blocks")
-		s.Sub.Close()
 		closeAllBlocks(s)
+		s.Sub.Close()
 		sub, err := ipc.Subscribe()
 		if err != nil {
 			return err
 		}
 		s.Sub = sub
-		s.subdemux = SubDemux(sub)
 		reply.Args = args
 		reply.Success = true
 		return nil
 	case ExitServer:
-		s.Sub.Close()
 		closeAllBlocks(s)
+		s.Sub.Close()
 		fallthrough
 	default:
 		s.cfg.Ctrl <- args
@@ -152,7 +151,7 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 
 func closeAllBlocks(s *Swager) {
 	for tag, block := range s.initalized {
-		closer, ok := block.(core.Closer)
+		closer, ok := block.(io.Closer)
 		if ok {
 			closer.Close()
 		}
