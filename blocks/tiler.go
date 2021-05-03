@@ -22,8 +22,8 @@ func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options, args 
 	if err != nil {
 		return err
 	}
-	t.opts = opts
 
+	t.opts = opts
 	t.winevts = cookie
 	return nil
 }

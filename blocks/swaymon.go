@@ -59,6 +59,7 @@ func (m *SwayMon) WorkspaceChange(evt ipc.WorkspaceChange) {
 	if evt.Change != ipc.ReloadWorkspace {
 		return
 	}
+
 	m.opts.Log.Print("swaymon", "received reload event")
 	m.opts.Server.RequestExit()
 	return

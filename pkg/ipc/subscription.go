@@ -25,6 +25,7 @@ func Subscribe() (*Subscription, error) {
 func SubscribeCustom(client *Client) *Subscription {
 	s := new(Subscription)
 	s.client = client
+	s.errors = make([]chan<- error, 0)
 
 	return s
 }
@@ -78,41 +79,28 @@ type Subscription struct {
 
 func (s *Subscription) Close() error {
 	if s.client != nil {
-
 		doLocked(&s.workspacesmx, func() {
-			for k := range s.workspaces {
-				delete(s.workspaces, k)
-			}
+			s.workspaces = nil
 		})
 
 		doLocked(&s.bindingmodesmx, func() {
-			for k := range s.bindingmodes {
-				delete(s.bindingmodes, k)
-			}
+			s.bindingmodes = nil
 		})
 
 		doLocked(&s.windowsmx, func() {
-			for k := range s.windows {
-				delete(s.windows, k)
-			}
+			s.windows = nil
 		})
 
 		doLocked(&s.bindingsmx, func() {
-			for k := range s.bindings {
-				delete(s.bindings, k)
-			}
+			s.bindings = nil
 		})
 
 		doLocked(&s.shutdownsmx, func() {
-			for k := range s.shutdowns {
-				delete(s.shutdowns, k)
-			}
+			s.shutdowns = nil
 		})
 
 		doLocked(&s.ticksmx, func() {
-			for k := range s.ticks {
-				delete(s.ticks, k)
-			}
+			s.ticks = nil
 		})
 
 		err := s.client.Close()
@@ -126,18 +114,11 @@ func (s *Subscription) Close() error {
 // Errors returns the channel that subscription errors are yielded on.
 // All errors from this channel are of type MonitoringError.
 func (s *Subscription) Errors(ch chan<- error) {
-	if s.errors == nil {
-		s.errors = []chan<- error{ch}
-	} else {
-		s.errors = append(s.errors, ch)
-	}
+	s.errors = append(s.errors, ch)
 }
 
 func (s *Subscription) RemoveHandler(c Cookie) {
-	s.clientmx.Lock()
-	defer s.clientmx.Unlock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return
 	}
 
@@ -151,10 +132,7 @@ func (s *Subscription) RemoveHandler(c Cookie) {
 
 // WorkspaceChanges returns the channel that WorkspaceChange events are yielded on.
 func (s *Subscription) WorkspaceChanges(h WorkspaceChangeHandler) (Cookie, error) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Lock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
 	}
 
@@ -173,10 +151,7 @@ func (s *Subscription) WorkspaceChanges(h WorkspaceChangeHandler) (Cookie, error
 }
 
 func (s *Subscription) BindingModeChanges(h BindingModeChangeHandler) (Cookie, error) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Unlock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
 	}
 
@@ -196,10 +171,7 @@ func (s *Subscription) BindingModeChanges(h BindingModeChangeHandler) (Cookie, e
 
 // WindowChanges returns the channel that WindowChange events are yielded on.
 func (s *Subscription) WindowChanges(h WindowChangeHandler) (Cookie, error) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Unlock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
 	}
 
@@ -218,10 +190,7 @@ func (s *Subscription) WindowChanges(h WindowChangeHandler) (Cookie, error) {
 }
 
 func (s *Subscription) BindingChanges(h BindingChangeHandler) (Cookie, error) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Unlock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
 	}
 
@@ -241,10 +210,7 @@ func (s *Subscription) BindingChanges(h BindingChangeHandler) (Cookie, error) {
 
 // ShutdownChanges returns the channel that ShutdownChange events are yielded on.
 func (s *Subscription) ShutdownChanges(h ShutdownChangeHandler) (Cookie, error) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Unlock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
 	}
 
@@ -263,10 +229,7 @@ func (s *Subscription) ShutdownChanges(h ShutdownChangeHandler) (Cookie, error) 
 }
 
 func (s *Subscription) Ticks(h TickHandler) (Cookie, error) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Unlock()
-
-	if err := s.checkClient(); err != nil {
+	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, nil
 	}
 
@@ -285,10 +248,16 @@ func (s *Subscription) Ticks(h TickHandler) (Cookie, error) {
 }
 
 func (s *Subscription) Run() {
-	s.clientmx.Lock()
-	defer s.clientmx.Unlock()
-	for s.client != nil {
+	for {
 		var h header
+
+		if s.client == nil {
+			break
+		}
+		s.clientmx.Lock()
+		if s.client == nil {
+			break
+		}
 		if err := binary.Read(s.client, binary.LittleEndian, &h); err != nil {
 			s.sendError(&MonitoringError{
 				fmt.Errorf("run binary.Read: %s", err)})
@@ -306,6 +275,7 @@ func (s *Subscription) Run() {
 				fmt.Errorf("run io.ReadFull: %s", err)})
 			continue
 		}
+		s.clientmx.Unlock()
 
 		switch EventPayloadType(h.PayloadType) {
 		case WorkspaceEvent:
@@ -352,20 +322,20 @@ func (s *Subscription) Run() {
 }
 
 func (s *Subscription) subscribeEvent(event EventPayloadType) {
-	//	s.clientmx.Lock()
-	//	defer s.clientmx.Unlock()
-	res, err := s.client.Subscribe(event)
-	if err != nil {
-		s.sendError(&MonitoringError{fmt.Errorf("subscribeEvent s.client.Subscribe: %s", err)})
-	}
-	if !res.Success {
-		s.sendError(&MonitoringError{errors.New("sway error: could not subscribe to event")})
+	if s.client != nil {
+		res, err := s.client.Subscribe(event)
+		if err != nil {
+			s.sendError(&MonitoringError{fmt.Errorf("subscribeEvent s.client.Subscribe: %s", err)})
+		}
+		if !res.Success {
+			s.sendError(&MonitoringError{errors.New("sway error: could not subscribe to event")})
+		}
 	}
 }
 
-func (s *Subscription) checkClient() error {
+func (s *Subscription) ensureClient() error {
 	if s.client == nil {
-		return errors.New("Cannot add or remove handlers on a closed subscription")
+		return errors.New("Cannot add handlers on a closed subscription")
 	}
 
 	return nil
