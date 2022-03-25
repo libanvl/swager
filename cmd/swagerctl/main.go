@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -17,26 +16,40 @@ import (
 )
 
 func main() {
-	flagHelp := flag.Bool("help", false, "show command usage")
-	flagCtimeout := flag.Duration("ctimeout", 2*time.Second, "time to wait for a connection to the swager daemon")
+	var flagCtimeout time.Duration = 2 * time.Second
 
-	flag.Parse()
-	args := flag.Args()
+	args := os.Args[1:]
 
-	if *flagHelp || len(args) < 2 {
+	if len(args) < 2 {
 		fmt.Println(usage())
 		os.Exit(0)
 	}
 
 	parser := stoker.Parser(
-		stoker.Def("+server"),
-		stoker.Def("+init"),
-		stoker.Def("+log"),
-		stoker.Def("+send"),
-		stoker.Def("+config"),
+		stoker.DefArgs("-h", false),
+		stoker.Def("-c"),
+		stoker.Def("--server"),
+		stoker.Def("--init"),
+		stoker.Def("--log"),
+		stoker.Def("--send"),
+		stoker.Def("--config"),
 	)
 
 	tokenmap := parser.Parse(args...)
+
+	if parser.Present.Contains("-h") {
+		fmt.Println(usage())
+		os.Exit(0)
+	}
+
+	if parser.Present.Contains("-c") {
+		var err error
+		flagCtimeout, err = time.ParseDuration(tokenmap["-c"][0][0])
+		if err != nil {
+			fmt.Println(usage())
+			os.Exit(1)
+		}
+	}
 
 	sokch := make(chan string)
 	go func(ch chan<- string) {
@@ -56,7 +69,7 @@ func main() {
 	case addr = <-sokch:
 		close(sokch)
 		break
-	case <-time.After(*flagCtimeout):
+	case <-time.After(flagCtimeout):
 		log.Fatal("swager socket timeout error")
 	}
 
@@ -83,7 +96,7 @@ func main() {
 
 	reply := new(comm.Reply)
 
-	if err := tokenmap.ProcessSet("+server", func(ts stoker.TokenSet) error {
+	if err := tokenmap.ProcessSet("--server", func(ts stoker.TokenSet) error {
 		for _, sc := range ts {
 			args, err := comm.ToServerArgs(sc)
 			if err != nil {
@@ -95,23 +108,23 @@ func main() {
 		}
 		return nil
 	}); err != nil {
-		log.Fatal("error: ", "+server ", err)
+		log.Fatal("error: ", "--server ", err)
 	}
 
-	if err := tokenmap.ProcessSet("+init", processTokenSet(client, reply, comm.InitBlock)); err != nil {
-		log.Fatal("error: ", "+init ", err)
+	if err := tokenmap.ProcessSet("--init", processTokenSet(client, reply, comm.InitBlock)); err != nil {
+		log.Fatal("error: ", "--init ", err)
 	}
 
-	if err := tokenmap.ProcessSet("+log", processTokenSet(client, reply, comm.SetTagLog)); err != nil {
-		log.Fatal("error: ", "+log ", err)
+	if err := tokenmap.ProcessSet("--log", processTokenSet(client, reply, comm.SetTagLog)); err != nil {
+		log.Fatal("error: ", "--log ", err)
 	}
 
-	if err := tokenmap.ProcessSet("+send", processTokenSet(client, reply, comm.SendToTag)); err != nil {
-		log.Fatal("error: ", "+send ", err)
+	if err := tokenmap.ProcessSet("--send", processTokenSet(client, reply, comm.SendToTag)); err != nil {
+		log.Fatal("error: ", "--send ", err)
 	}
 
-	if err := tokenmap.ProcessSet("+config", processTokenSet(client, reply, comm.Control)); err != nil {
-		log.Fatal("error: ", "+config ", err)
+	if err := tokenmap.ProcessSet("--config", processTokenSet(client, reply, comm.Control)); err != nil {
+		log.Fatal("error: ", "--config ", err)
 	}
 }
 
@@ -156,11 +169,11 @@ func call(client *rpc.Client, op comm.SwagerMethod, a interface{}, reply *comm.R
 }
 
 func usage() string {
-	help := `swayctl [<flags>] <method> [<submethod>] [args...] [...]
+	help := `swagerctl [<flags>] <method> [<submethod>] [args...] [...]
 
   flags:
-  --ctimeout duration - time to wait for a connection to the swager daemon (default 2s)
-  --help
+  -c duration - time to wait for a connection to the swager daemon (default 2s)
+  -h help
 
   methods:
     methods are executed in order by type:

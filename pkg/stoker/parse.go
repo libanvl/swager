@@ -6,19 +6,20 @@ import (
 )
 
 type TokenSetProcessor func(TokenSet) error
+type TokenList []string
 
 type def struct {
-	flag string
+	flag    string
+	hasArgs bool
 }
 
 type defList []*def
 
 type parser struct {
 	Defs    defList
-	Present []string
+	Present TokenList
 }
 
-type TokenList []string
 type TokenSet []TokenList
 type TokenMap map[string]TokenSet
 
@@ -27,7 +28,11 @@ func Parser(heads ...*def) *parser {
 }
 
 func Def(flag string) *def {
-	return &def{flag: flag}
+	return &def{flag: flag, hasArgs: true}
+}
+
+func DefArgs(flag string, hasArgs bool) *def {
+	return &def{flag: flag, hasArgs: hasArgs}
 }
 
 func (p parser) Parse(args ...string) TokenMap {
@@ -40,10 +45,14 @@ func (p parser) Parse(args ...string) TokenMap {
 		tokenlower := strings.ToLower(token)
 		var ok bool = false
 		if currdef, ok = p.Defs.findByFlag(tokenlower); ok {
-			if !contains(p.Present, currdef.flag) {
+			if !p.Present.Contains(currdef.flag) {
 				p.Present = append(p.Present, currdef.flag)
 			}
 			// starting new tokenlist
+
+			if !currdef.hasArgs {
+				continue
+			}
 
 			// move currlist to map
 			// - ensure the map has a tokenset for the flag
@@ -89,7 +98,7 @@ func (m TokenMap) ProcessSet(flag string, p TokenSetProcessor) error {
 	return nil
 }
 
-func contains(ss []string, arg string) bool {
+func (ss TokenList) Contains(arg string) bool {
 	for _, s := range ss {
 		if arg == s {
 			return true

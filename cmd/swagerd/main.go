@@ -71,12 +71,13 @@ func main() {
 		case r := <-creqch:
 			if r == core.ExitRequest {
 				go server.Control(&comm.ControlArgs{Command: comm.ExitServer}, &comm.Reply{})
+				goto cleanup
 			}
 			if r == core.ReloadRequest {
 				go server.Control(&comm.ControlArgs{Command: comm.ResetServer}, &comm.Reply{})
 			}
 		case l := <-logch:
-      log.Println(l)
+			log.Println(l)
 		case cmdargs := <-ctrlch:
 			if cmdargs.Command != comm.ExitServer {
 				continue

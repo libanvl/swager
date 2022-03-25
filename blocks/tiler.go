@@ -1,3 +1,4 @@
+// adapted from https://github.com/nwg-piotr/autotiling/blob/master/autotiling/main.py
 package blocks
 
 import (
@@ -8,6 +9,7 @@ import (
 type Tiler struct {
 	client   core.Client
 	winevts  ipc.Cookie
+	modevts  ipc.Cookie
 	opts     *core.Options
 	loglevel core.LogLevel
 }
@@ -18,13 +20,19 @@ func init() {
 
 func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
 	t.client = client
-	cookie, err := sub.WindowChanges(t)
+	wincookie, err := sub.WindowChanges(t)
+	if err != nil {
+		return err
+	}
+
+	modcookie, err := sub.BindingChanges(t)
 	if err != nil {
 		return err
 	}
 
 	t.opts = opts
-	t.winevts = cookie
+	t.winevts = wincookie
+	t.modevts = modcookie
 	return nil
 }
 
@@ -32,22 +40,42 @@ func (t *Tiler) SetLogLevel(level core.LogLevel) {
 	t.loglevel = level
 }
 
+func (t *Tiler) BindingChange(evt ipc.BindingChange) {
+	setLayout(t)
+}
+
 func (t *Tiler) WindowChange(evt ipc.WindowChange) {
 	if evt.Change != ipc.FocusWindow {
 		return
 	}
 
-	if evt.Container.Type == ipc.FloatingConNode {
-		return
-	}
+	setLayout(t)
+}
 
+func setLayout(t *Tiler) {
 	root, err := t.client.Tree()
 	if err != nil {
 		t.opts.Log.Printf("tiler", "Fatal error: GetTree failed: %v", err)
 		return
 	}
 
-	parent := core.FindParent(root, evt.Container.ID)
+	con := root.FindChild(func(n *ipc.Node) bool {
+		return n.Focused
+	})
+
+	if con == nil {
+		if t.loglevel.Debug() {
+			t.opts.Log.Print("tiler", "Focused window not found")
+		}
+		return
+	}
+
+	if con.Type == ipc.FloatingConNode ||
+		con.FullScreenMode != ipc.FullScreenModeNone {
+		return
+	}
+
+	parent := core.FindParent(root, con.ID)
 	if parent == nil {
 		if t.loglevel.Debug() {
 			t.opts.Log.Print("tiler", "Window has no parent")
@@ -60,7 +88,7 @@ func (t *Tiler) WindowChange(evt ipc.WindowChange) {
 	}
 
 	newlayout := "splith"
-	if evt.Container.Rect.Height > evt.Container.Rect.Width {
+	if con.Rect.Height > con.Rect.Width {
 		newlayout = "splitv"
 	}
 
@@ -69,8 +97,16 @@ func (t *Tiler) WindowChange(evt ipc.WindowChange) {
 		if err != nil {
 			t.opts.Log.Printf("tiler", "Error sending command: %v", err)
 		}
-		if !(s[0].Success) {
-			t.opts.Log.Printf("tiler", "sway error: %v", s[0].Error)
+
+		if len(s) > 0 {
+			if s[0].Success {
+				if t.loglevel.Debug() {
+					t.opts.Log.Printf("tiller", "switched to layout: %v", newlayout)
+				}
+			} else {
+				t.opts.Log.Printf("tiler", "sway error: %v", s[0].Error)
+			}
 		}
 	}
+	return
 }

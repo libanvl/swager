@@ -71,25 +71,34 @@ const (
 	FloatingConNode NodeType = "floating_con"
 )
 
+type FullScreenModeType int
+
+const (
+	FullScreenModeNone      FullScreenModeType = 0
+	FullScreenModeWorkspace FullScreenModeType = 1
+	FullScreenModeGlobal    FullScreenModeType = 2
+)
+
 type Node struct {
-	ID                 int              `json:"id"`
-	Name               string           `json:"name"`
-	Rect               Rect             `json:"rect"`
-	Focused            bool             `json:"focused"`
-	Focus              []int            `json:"focus"`
-	Border             string           `json:"border"`
-	CurrentBorderWidth int              `json:"current_border_width"`
-	Layout             string           `json:"layout"`
-	Percent            float64          `json:"percent"`
-	WindowRect         Rect             `json:"window_rect"`
-	DecoRect           Rect             `json:"deco_rect"`
-	Geometry           Rect             `json:"geometry"`
-	Window             int              `json:"window"`
-	Urgent             bool             `json:"urgent"`
-	FloatingNodes      []Node           `json:"floating_nodes"`
-	Type               NodeType         `json:"type"`
-	Pid                int              `json:"pid"`
-	AppID              string           `json:"app_id"`
-	WindowProperties   WindowProperties `json:"window_properties"`
-	Nodes              []Node           `json:"nodes"`
+	ID                 int                `json:"id"`
+	Name               string             `json:"name"`
+	Rect               Rect               `json:"rect"`
+	Focused            bool               `json:"focused"`
+	Focus              []int              `json:"focus"`
+	Border             string             `json:"border"`
+	CurrentBorderWidth int                `json:"current_border_width"`
+	Layout             string             `json:"layout"`
+	Percent            float64            `json:"percent"`
+	WindowRect         Rect               `json:"window_rect"`
+	DecoRect           Rect               `json:"deco_rect"`
+	Geometry           Rect               `json:"geometry"`
+	Window             int                `json:"window"`
+	Urgent             bool               `json:"urgent"`
+	FloatingNodes      []Node             `json:"floating_nodes"`
+	Type               NodeType           `json:"type"`
+	Pid                int                `json:"pid"`
+	AppID              string             `json:"app_id"`
+	WindowProperties   WindowProperties   `json:"window_properties"`
+	FullScreenMode     FullScreenModeType `json:"fullscreen_mode"`
+	Nodes              []Node             `json:"nodes"`
 }

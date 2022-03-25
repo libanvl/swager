@@ -10,9 +10,7 @@ import (
 )
 
 // Subscribe to sway-ipc events.
-// A single Subscription can listen for multiple event types,
-// but each event payload is yielded on the corresponding
-// typed channel.
+// A single Subscription can listen for multiple event types.
 func Subscribe() (*Subscription, error) {
 	c, err := Connect()
 	if err != nil {
@@ -130,7 +128,6 @@ func (s *Subscription) RemoveHandler(c Cookie) {
 	delete(s.ticks, c)
 }
 
-// WorkspaceChanges returns the channel that WorkspaceChange events are yielded on.
 func (s *Subscription) WorkspaceChanges(h WorkspaceChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -169,7 +166,6 @@ func (s *Subscription) BindingModeChanges(h BindingModeChangeHandler) (Cookie, e
 	return cookie, nil
 }
 
-// WindowChanges returns the channel that WindowChange events are yielded on.
 func (s *Subscription) WindowChanges(h WindowChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -208,7 +204,6 @@ func (s *Subscription) BindingChanges(h BindingChangeHandler) (Cookie, error) {
 	return cookie, nil
 }
 
-// ShutdownChanges returns the channel that ShutdownChange events are yielded on.
 func (s *Subscription) ShutdownChanges(h ShutdownChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -254,10 +249,12 @@ func (s *Subscription) Run() {
 		if s.client == nil {
 			break
 		}
+
 		s.clientmx.Lock()
 		if s.client == nil {
 			break
 		}
+
 		if err := binary.Read(s.client, binary.LittleEndian, &h); err != nil {
 			s.sendError(&MonitoringError{
 				fmt.Errorf("run binary.Read: %s", err)})
