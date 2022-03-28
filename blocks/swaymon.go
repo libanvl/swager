@@ -15,6 +15,8 @@ type SwayMon struct {
 
 func init() {
 	var _ core.BlockInitializer = (*SwayMon)(nil)
+	var _ ipc.WorkspaceChangeHandler = (*SwayMon)(nil)
+	var _ ipc.ShutdownChangeHandler = (*SwayMon)(nil)
 }
 
 func (m *SwayMon) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {

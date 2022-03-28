@@ -5,7 +5,10 @@ import (
 	"io"
 )
 
-func (c Client) ipccall(pt payloadType, payload []byte) ([]byte, error) {
+func (c *Client) ipccall(pt payloadType, payload []byte) ([]byte, error) {
+	c.ipcmx.Lock()
+	defer c.ipcmx.Unlock()
+
 	if err := c.write(pt, payload); err != nil {
 		return nil, err
 	}
@@ -13,7 +16,7 @@ func (c Client) ipccall(pt payloadType, payload []byte) ([]byte, error) {
 	return c.read()
 }
 
-func (c Client) ipccallraw(pt payloadType, payload []byte) (string, error) {
+func (c *Client) ipccallraw(pt payloadType, payload []byte) (string, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
 		return "", nil
@@ -21,7 +24,7 @@ func (c Client) ipccallraw(pt payloadType, payload []byte) (string, error) {
 	return string(res), nil
 }
 
-func (c Client) write(pt payloadType, payload []byte) error {
+func (c *Client) write(pt payloadType, payload []byte) error {
 	h := newHeader(pt, len(payload))
 	if err := binary.Write(c, c.yo, h); err != nil {
 		return err
@@ -37,7 +40,7 @@ func (c Client) write(pt payloadType, payload []byte) error {
 	return nil
 }
 
-func (c Client) read() ([]byte, error) {
+func (c *Client) read() ([]byte, error) {
 	var h header
 	if err := binary.Read(c, c.yo, &h); err != nil {
 		return nil, err

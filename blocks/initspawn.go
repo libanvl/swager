@@ -22,6 +22,7 @@ type InitSpawn struct {
 func init() {
 	var _ core.BlockInitializer = (*InitSpawn)(nil)
 	var _ core.Receiver = (*InitSpawn)(nil)
+	var _ ipc.WorkspaceChangeHandler = (*InitSpawn)(nil)
 }
 
 func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {

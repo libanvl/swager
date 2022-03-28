@@ -32,6 +32,7 @@ type Sub interface {
 	WorkspaceChanges(ipc.WorkspaceChangeHandler) (ipc.Cookie, error)
 	WindowChanges(ipc.WindowChangeHandler) (ipc.Cookie, error)
 	BindingChanges(ipc.BindingChangeHandler) (ipc.Cookie, error)
+	BindingModeChanges(ipc.BindingModeChangeHandler) (ipc.Cookie, error)
 	ShutdownChanges(ipc.ShutdownChangeHandler) (ipc.Cookie, error)
 	Ticks(ipc.TickHandler) (ipc.Cookie, error)
 }

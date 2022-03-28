@@ -2,6 +2,8 @@
 package blocks
 
 import (
+	"encoding/json"
+
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/pkg/ipc"
 )
@@ -16,6 +18,8 @@ type Tiler struct {
 
 func init() {
 	var _ core.BlockInitializer = (*Tiler)(nil)
+	var _ ipc.BindingModeChangeHandler = (*Tiler)(nil)
+	var _ ipc.WindowChangeHandler = (*Tiler)(nil)
 }
 
 func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
@@ -25,7 +29,7 @@ func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options, args 
 		return err
 	}
 
-	modcookie, err := sub.BindingChanges(t)
+	modcookie, err := sub.BindingModeChanges(t)
 	if err != nil {
 		return err
 	}
@@ -40,12 +44,22 @@ func (t *Tiler) SetLogLevel(level core.LogLevel) {
 	t.loglevel = level
 }
 
-func (t *Tiler) BindingChange(evt ipc.BindingChange) {
+func (t *Tiler) BindingModeChange(evt ipc.BindingModeChange) {
+	if t.loglevel.Debug() {
+		t.opts.Log.Printf("tiler", "Binding Mode Change event: %v", evt)
+	}
 	setLayout(t)
 }
 
 func (t *Tiler) WindowChange(evt ipc.WindowChange) {
-	if evt.Change != ipc.FocusWindow {
+	if t.loglevel.Debug() {
+		t.opts.Log.Printf("tiler", "Window Change event: %v %v", evt.Change, evt.Container.Name)
+	}
+
+	switch evt.Change {
+	case ipc.TitleWindow:
+	case ipc.MarkWindow:
+	case ipc.UrgentWindow:
 		return
 	}
 
@@ -55,7 +69,7 @@ func (t *Tiler) WindowChange(evt ipc.WindowChange) {
 func setLayout(t *Tiler) {
 	root, err := t.client.Tree()
 	if err != nil {
-		t.opts.Log.Printf("tiler", "Fatal error: GetTree failed: %v", err)
+		t.opts.Log.Printf("tiler", "GetTree failed: %v", err)
 		return
 	}
 
@@ -95,13 +109,16 @@ func setLayout(t *Tiler) {
 	if parent.Layout != newlayout {
 		s, err := t.client.Command(newlayout)
 		if err != nil {
+			if jerr, ok := err.(*json.UnmarshalTypeError); ok {
+				t.opts.Log.Printf("tiler", "Error sending command: %v", jerr)
+			}
 			t.opts.Log.Printf("tiler", "Error sending command: %v", err)
 		}
 
 		if len(s) > 0 {
 			if s[0].Success {
 				if t.loglevel.Debug() {
-					t.opts.Log.Printf("tiller", "switched to layout: %v", newlayout)
+					t.opts.Log.Printf("tiler", "switched to layout: %v", newlayout)
 				}
 			} else {
 				t.opts.Log.Printf("tiler", "sway error: %v", s[0].Error)
