@@ -32,7 +32,7 @@ const (
 	BindingEvent         EventPayloadType = 0x80000005
 	ShutdownEvent        EventPayloadType = 0x80000006
 	TickEvent            EventPayloadType = 0x80000007
-	BarStatusUpdateEvent EventPayloadType = 0x80000014
+	BarStateUpdateEvent  EventPayloadType = 0x80000014
 	InputEvent           EventPayloadType = 0x80000015
 )
 
@@ -74,7 +74,7 @@ func (p EventPayloadType) eventName() string {
 		return "shutdown"
 	case TickEvent:
 		return "tick"
-	case BarStatusUpdateEvent:
+	case BarStateUpdateEvent:
 		return "bar_status_update"
 	case InputEvent:
 		return "input"

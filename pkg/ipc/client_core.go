@@ -2,6 +2,7 @@ package ipc
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"io"
 )
 
@@ -53,4 +54,32 @@ func (c *Client) read() ([]byte, error) {
 	}
 
 	return buf, nil
+}
+
+func clientcallptr[T interface{}](c *Client, pt payloadType, payload []byte) (*T, error) {
+	res, err := c.ipccall(pt, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	t := new(T)
+	if err := json.Unmarshal(res, t); err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+func clientcallarr[T interface{}](c *Client, pt payloadType, payload []byte) ([]T, error) {
+	res, err := c.ipccall(pt, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var values []T
+	if err := json.Unmarshal(res, &values); err != nil {
+		return nil, err
+	}
+
+	return values, nil
 }

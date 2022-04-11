@@ -33,7 +33,7 @@ func ConnectCustom(uds string, byteorder binary.ByteOrder) (*Client, error) {
 }
 
 // Client is a sway-ipc compatible rpc client.
-// Client is also an io.ReadWriteCloser
+// Client is also an io.ReadWriteCloser.
 type Client struct {
 	io.ReadWriteCloser
 	yo    binary.ByteOrder
@@ -42,37 +42,22 @@ type Client struct {
 
 // Command implements the sway-ipc RUN_COMMAND message.
 func (c *Client) Command(cmd string) ([]Command, error) {
-	res, err := c.ipccall(runCommandMessage, []byte(cmd))
-	if err != nil {
-		return nil, err
-	}
-
-	var ss []Command
-	if err := json.Unmarshal(res, &ss); err != nil {
-		return nil, err
-	}
-
-	return ss, nil
+	return clientcallarr[Command](c, runCommandMessage, []byte(cmd))
 }
 
+// CommandRaw implements the sway-ipc RUN_COMMAND message
+// and returns a json string.
 func (c *Client) CommandRaw(cmd string) (string, error) {
 	return c.ipccallraw(runCommandMessage, []byte(cmd))
 }
 
 // Workspaces implements the sway-ipc GET_WORKSPACES message.
 func (c *Client) Workspaces() ([]Workspace, error) {
-	res, err := c.ipccall(getWorkspacesMessage, nil)
-	if err != nil {
-		return nil, err
-	}
-	var ws []Workspace
-	if err := json.Unmarshal(res, &ws); err != nil {
-		return nil, err
-	}
-
-	return ws, nil
+	return clientcallarr[Workspace](c, getWorkspacesMessage, nil)
 }
 
+// Workspaces implements the sway-ipc GET_WORKSPACES message
+// and returns a json string.
 func (c *Client) WorkspacesRaw() (string, error) {
 	return c.ipccallraw(getWorkspacesMessage, nil)
 }
@@ -84,30 +69,16 @@ func (c *Client) Subscribe(evts ...EventPayloadType) (*Result, error) {
 		return nil, err
 	}
 
-	res, err := c.ipccall(subscribeMessage, pbytes)
-	s := new(Result)
-	if err := json.Unmarshal(res, s); err != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return clientcallptr[Result](c, subscribeMessage, pbytes)
 }
 
 // Outputs implements the sway-ipc GET_OUTPUTS message.
 func (c *Client) Outputs() ([]Output, error) {
-	res, err := c.ipccall(getOutputsMessage, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var os []Output
-	if err := json.Unmarshal(res, &os); err != nil {
-		return nil, err
-	}
-
-	return os, nil
+	return clientcallarr[Output](c, getOutputsMessage, nil)
 }
 
+// Outputs implements the sway-ipc GET_OUTPUTS message
+// and returns a json string.
 func (c *Client) OutputsRaw() (string, error) {
 	return c.ipccallraw(getOutputsMessage, nil)
 }
@@ -115,37 +86,66 @@ func (c *Client) OutputsRaw() (string, error) {
 // Tree implements the sway-ipc GET_TREE message.
 // Returns a *Node representing the root of the tree.
 func (c *Client) Tree() (*Node, error) {
-	res, err := c.ipccall(getTreeMessage, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	n := new(Node)
-	if err := json.Unmarshal(res, n); err != nil {
-		return nil, err
-	}
-
-	return n, nil
+	return clientcallptr[Node](c, getTreeMessage, nil)
 }
 
+// Tree implements the sway-ipc GET_TREE message
+// and returns a json string.
 func (c *Client) TreeRaw() (string, error) {
 	return c.ipccallraw(getTreeMessage, nil)
 }
 
-// Version implements the sway-ipc GET_VERSION message.
-func (c *Client) Version() (*Version, error) {
-	res, err := c.ipccall(getVersionMessage, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	v := new(Version)
-	if err := json.Unmarshal(res, v); err != nil {
-		return nil, err
-	}
-	return v, nil
+// Marks implements the sway-ipc GET_MARKS message.
+func (c *Client) Marks() ([]string, error) {
+	return clientcallarr[string](c, getMarksMessage, nil)
 }
 
+// Marks implements the sway-ipc GET_MARKS message
+// and returns a json string.
+func (c *Client) MarksRaw() (string, error) {
+	return c.ipccallraw(getMarksMessage, nil)
+}
+
+// Version implements the sway-ipc GET_VERSION message.
+func (c *Client) Version() (*Version, error) {
+	return clientcallptr[Version](c, getVersionMessage, nil)
+}
+
+// Version implements the sway-ipc GET_VERSION message
+// and returns a json string.
 func (c *Client) VersionRaw() (string, error) {
 	return c.ipccallraw(getVersionMessage, nil)
+}
+
+// BindingModes implements the sway-ipc GET_BINDING_MODES message.
+func (c *Client) BindingModes() ([]string, error) {
+	return clientcallarr[string](c, getBindingModesMessage, nil)
+}
+
+// BindingModes implements the sway-ipc GET_BINDING_MODES message
+// and returns a json string.
+func (c *Client) BindingModesRaw() (string, error) {
+	return c.ipccallraw(getBindingModesMessage, nil)
+}
+
+// Tick implements the sway-ipc SEND_TICK message.
+func (c *Client) Tick(payload string) (*Result, error) {
+	return clientcallptr[Result](c, sendTickMessage, []byte(payload))
+}
+
+// Tick implements the sway-ipc SEND_TICK message
+// and returns a json string.
+func (c *Client) TickRaw(payload string) (string, error) {
+	return c.ipccallraw(sendTickMessage, []byte(payload))
+}
+
+// BindingState implements the sway-ipc GET_BINDING_STATE message.
+func (c *Client) BindingState() (*BindingState, error) {
+	return clientcallptr[BindingState](c, getBindingStateMessage, nil)
+}
+
+// BindingState implements the sway-ipc GET_BINDING_STATE message
+// and returns a json string.
+func (c *Client) BindingStateRaw() (string, error) {
+	return c.ipccallraw(getBindingStateMessage, nil)
 }

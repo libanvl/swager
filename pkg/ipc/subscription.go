@@ -9,8 +9,10 @@ import (
 	"sync/atomic"
 )
 
-// Subscribe to sway-ipc events.
+// Subscribe to sway-ipc events, creating a new Client.
 // A single Subscription can listen for multiple event types.
+// After all event handlers have been added, call Run to start
+// listening for events.
 func Subscribe() (*Subscription, error) {
 	c, err := Connect()
 	if err != nil {
@@ -20,6 +22,10 @@ func Subscribe() (*Subscription, error) {
 	return SubscribeCustom(c), nil
 }
 
+// SubscribeCustom uses an existing Client instance to listen
+// for events. Multiple events can be subscribed to.
+// After all event handlers have been added, call Run to start
+// listening for events.
 func SubscribeCustom(client *Client) *Subscription {
 	s := new(Subscription)
 	s.client = client
@@ -28,6 +34,8 @@ func SubscribeCustom(client *Client) *Subscription {
 	return s
 }
 
+// Cookie represents a single event subscription.
+// Cookie is used to remove a registered handler.
 type Cookie uint32
 
 var EmptyCookie = Cookie(0)
@@ -37,7 +45,7 @@ type WorkspaceChangeHandler interface {
 }
 
 type BindingModeChangeHandler interface {
-	BindingModeChange(BindingModeChange)
+	BindingModeChange(ModeChange)
 }
 
 type WindowChangeHandler interface {
@@ -75,6 +83,8 @@ type Subscription struct {
 	ticksmx        sync.Mutex
 }
 
+// Close removes all registered event handlers
+// and CLOSES THE UNDERLYING CLIENT.
 func (s *Subscription) Close() error {
 	if s.client != nil {
 		doLocked(&s.workspacesmx, func() {
@@ -115,6 +125,7 @@ func (s *Subscription) Errors(ch chan<- error) {
 	s.errors = append(s.errors, ch)
 }
 
+// RemoveHandler removes a registered event handler.
 func (s *Subscription) RemoveHandler(c Cookie) {
 	if err := s.ensureClient(); err != nil {
 		return
@@ -128,6 +139,7 @@ func (s *Subscription) RemoveHandler(c Cookie) {
 	delete(s.ticks, c)
 }
 
+// WorkspaceChanges registers a new event handler.
 func (s *Subscription) WorkspaceChanges(h WorkspaceChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -147,6 +159,7 @@ func (s *Subscription) WorkspaceChanges(h WorkspaceChangeHandler) (Cookie, error
 	return cookie, nil
 }
 
+// BindingModeChanges registers a new event handler.
 func (s *Subscription) BindingModeChanges(h BindingModeChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -166,6 +179,7 @@ func (s *Subscription) BindingModeChanges(h BindingModeChangeHandler) (Cookie, e
 	return cookie, nil
 }
 
+// WindowChanges registers a new event handler.
 func (s *Subscription) WindowChanges(h WindowChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -185,6 +199,7 @@ func (s *Subscription) WindowChanges(h WindowChangeHandler) (Cookie, error) {
 	return cookie, nil
 }
 
+// BindingChanges registers a new event handler.
 func (s *Subscription) BindingChanges(h BindingChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -204,6 +219,7 @@ func (s *Subscription) BindingChanges(h BindingChangeHandler) (Cookie, error) {
 	return cookie, nil
 }
 
+// ShutdownChanges registers a new event handler.
 func (s *Subscription) ShutdownChanges(h ShutdownChangeHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, err
@@ -223,6 +239,7 @@ func (s *Subscription) ShutdownChanges(h ShutdownChangeHandler) (Cookie, error) 
 	return cookie, nil
 }
 
+// Ticks registers a new event handler.
 func (s *Subscription) Ticks(h TickHandler) (Cookie, error) {
 	if err := s.ensureClient(); err != nil {
 		return EmptyCookie, nil
@@ -242,6 +259,8 @@ func (s *Subscription) Ticks(h TickHandler) (Cookie, error) {
 	return cookie, nil
 }
 
+// Run starts listening for events, calling the registered handlers
+// as events come in.
 func (s *Subscription) Run() {
 	for {
 		var h header

@@ -48,7 +48,7 @@ func (s *Subscription) handleShutdown(buf []byte) error {
 }
 
 func (s *Subscription) handleBindingMode(buf []byte) error {
-	bmc := new(BindingModeChange)
+	bmc := new(ModeChange)
 	if err := json.Unmarshal(buf, bmc); err != nil {
 		return err
 	}

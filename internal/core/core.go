@@ -59,7 +59,6 @@ func (scc ServerControlChannel) RequestExit() {
 }
 
 // Options are shared options for use by core.Block instances.
-// Debug indicates that debug logging was requested when starting the daemon.
 // Use the Log channel to send log data back to the daemon.
 type Options struct {
 	Log    LogChannel

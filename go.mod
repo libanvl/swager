@@ -1,8 +1,7 @@
 module github.com/libanvl/swager
 
-go 1.15
+go 1.18
 
-require (
-	github.com/adrg/xdg v0.3.0
-	golang.org/x/tools v0.1.0 // indirect
-)
+require github.com/adrg/xdg v0.4.0
+
+require golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect

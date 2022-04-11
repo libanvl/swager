@@ -1,7 +1,8 @@
 package ipc
 
-// FindChild uses a breadth-first search. Returns the first
-// child Node matching the predicate, or nil if none found
+// FindChild uses a breadth-first search. Nodes are searched
+// before FloatingNodes. Returns the first
+// child Node matching the predicate, or nil if none found.
 func (n *Node) FindChild(predicate func(*Node) bool) *Node {
 	if predicate(n) {
 		return n
@@ -20,4 +21,12 @@ func (n *Node) FindChild(predicate func(*Node) bool) *Node {
 	}
 
 	return nil
+}
+
+const nodeNameScratch = "__i3_scratch"
+
+// IsScratch returns a value indicating whether
+// the Node is the scratchpad.
+func (n Node) IsScratchpad() bool {
+	return n.Name == nodeNameScratch
 }

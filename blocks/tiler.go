@@ -1,4 +1,3 @@
-// adapted from https://github.com/nwg-piotr/autotiling/blob/master/autotiling/main.py
 package blocks
 
 import (
@@ -44,7 +43,7 @@ func (t *Tiler) SetLogLevel(level core.LogLevel) {
 	t.loglevel = level
 }
 
-func (t *Tiler) BindingModeChange(evt ipc.BindingModeChange) {
+func (t *Tiler) BindingModeChange(evt ipc.ModeChange) {
 	if t.loglevel.Debug() {
 		t.opts.Log.Printf("tiler", "Binding Mode Change event: %v", evt)
 	}
@@ -66,6 +65,7 @@ func (t *Tiler) WindowChange(evt ipc.WindowChange) {
 	setLayout(t)
 }
 
+//adapted from https://github.com/nwg-piotr/autotiling/blob/master/autotiling/main.py
 func setLayout(t *Tiler) {
 	root, err := t.client.Tree()
 	if err != nil {
@@ -85,7 +85,7 @@ func setLayout(t *Tiler) {
 	}
 
 	if con.Type == ipc.FloatingConNode ||
-		con.FullScreenMode != ipc.FullScreenModeNone {
+		*con.FullscreenMode != ipc.NoneFullscreenMode {
 		return
 	}
 
@@ -97,17 +97,17 @@ func setLayout(t *Tiler) {
 		return
 	}
 
-	if parent.Layout == "stacked" || parent.Layout == "tabbed" {
+	if parent.Layout == ipc.StackedLayout || parent.Layout == ipc.TabbedLayout {
 		return
 	}
 
-	newlayout := "splith"
+	newlayout := ipc.SplitHLayout
 	if con.Rect.Height > con.Rect.Width {
-		newlayout = "splitv"
+		newlayout = ipc.SplitVLayout
 	}
 
 	if parent.Layout != newlayout {
-		s, err := t.client.Command(newlayout)
+		s, err := t.client.Command(string(newlayout))
 		if err != nil {
 			if jerr, ok := err.(*json.UnmarshalTypeError); ok {
 				t.opts.Log.Printf("tiler", "Error sending command: %v", jerr)

@@ -1,3 +1,6 @@
+/*
+Package stocker is for specialized argument parsing.
+*/
 package stoker
 
 import (

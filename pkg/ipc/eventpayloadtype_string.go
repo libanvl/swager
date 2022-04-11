@@ -15,19 +15,19 @@ func _() {
 	_ = x[BindingEvent-2147483653]
 	_ = x[ShutdownEvent-2147483654]
 	_ = x[TickEvent-2147483655]
-	_ = x[BarStatusUpdateEvent-2147483668]
+	_ = x[BarStateUpdateEvent-2147483668]
 	_ = x[InputEvent-2147483669]
 }
 
 const (
 	_EventPayloadType_name_0 = "WorkspaceEvent"
 	_EventPayloadType_name_1 = "ModeEventWindowEventBarconfigUpdateEventBindingEventShutdownEventTickEvent"
-	_EventPayloadType_name_2 = "BarStatusUpdateEventInputEvent"
+	_EventPayloadType_name_2 = "BarStateUpdateEventInputEvent"
 )
 
 var (
 	_EventPayloadType_index_1 = [...]uint8{0, 9, 20, 40, 52, 65, 74}
-	_EventPayloadType_index_2 = [...]uint8{0, 20, 30}
+	_EventPayloadType_index_2 = [...]uint8{0, 19, 29}
 )
 
 func (i EventPayloadType) String() string {

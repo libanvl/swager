@@ -1,11 +1,10 @@
 package ipc
 
 type Version struct {
+	Major                int    `json:"major"`
+	Minor                int    `json:"minor"`
+	Patch                int    `json:"patch"`
 	HumanReadable        string `json:"human_readable"`
-	Variant              string
-	Major                int
-	Minor                int
-	Patch                int
 	LoadedConfigFileName string `json:"loaded_config_file_name"`
 }
 
@@ -15,7 +14,8 @@ type Result struct {
 
 type Command struct {
 	Result
-	Error string `json:"error,omitempty"`
+	ParseError bool   `json:"parse_error"`
+	Error      string `json:"error,omitempty"`
 }
 
 type Workspace struct {
@@ -23,6 +23,7 @@ type Workspace struct {
 	Name    string `json:"name"`
 	Visible bool   `json:"visible"`
 	Focused bool   `json:"focused"`
+	Urgent  bool   `json:"urgent"`
 	Rect    Rect   `json:"rect"`
 	Output  string `json:"output"`
 }
@@ -39,6 +40,7 @@ type Output struct {
 	Model            string  `json:"model"`
 	Serial           string  `json:"serial"`
 	Active           bool    `json:"active"`
+	Dpms             bool    `json:"dpms"`
 	Primary          bool    `json:"primary"`
 	Scale            float64 `json:"scale"`
 	SubpixelHinting  string  `json:"subpixel_hinting"`
@@ -46,6 +48,7 @@ type Output struct {
 	CurrentWorkspace string  `json:"current_workspace"`
 	Modes            []Mode  `json:"modes"`
 	CurrentMode      Mode    `json:"current_mode"`
+	Rect             Rect    `json:"rect"`
 }
 
 type Rect struct {
@@ -55,50 +58,6 @@ type Rect struct {
 	Height int `json:"height"`
 }
 
-type WindowProperties struct {
-	Class        string      `json:"class"`
-	Instance     string      `json:"instance"`
-	TransientFor interface{} `json:"transient_for"`
-}
-
-type NodeType string
-
-const (
-	RootNode        NodeType = "root"
-	OutputNode      NodeType = "output"
-	WorkspaceNode   NodeType = "workspace"
-	ConNode         NodeType = "con"
-	FloatingConNode NodeType = "floating_con"
-)
-
-type FullScreenModeType int
-
-const (
-	FullScreenModeNone      FullScreenModeType = 0
-	FullScreenModeWorkspace FullScreenModeType = 1
-	FullScreenModeGlobal    FullScreenModeType = 2
-)
-
-type Node struct {
-	ID                 int                `json:"id"`
-	Name               string             `json:"name"`
-	Rect               Rect               `json:"rect"`
-	Focused            bool               `json:"focused"`
-	Focus              []int              `json:"focus"`
-	Border             string             `json:"border"`
-	CurrentBorderWidth int                `json:"current_border_width"`
-	Layout             string             `json:"layout"`
-	Percent            float64            `json:"percent"`
-	WindowRect         Rect               `json:"window_rect"`
-	DecoRect           Rect               `json:"deco_rect"`
-	Geometry           Rect               `json:"geometry"`
-	Window             int                `json:"window"`
-	Urgent             bool               `json:"urgent"`
-	FloatingNodes      []Node             `json:"floating_nodes"`
-	Type               NodeType           `json:"type"`
-	Pid                int                `json:"pid"`
-	AppID              string             `json:"app_id"`
-	WindowProperties   WindowProperties   `json:"window_properties"`
-	FullScreenMode     FullScreenModeType `json:"fullscreen_mode"`
-	Nodes              []Node             `json:"nodes"`
+type BindingState struct {
+	Name string `json:"name"`
 }

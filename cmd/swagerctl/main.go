@@ -169,16 +169,13 @@ func call(client *rpc.Client, op comm.SwagerMethod, a interface{}, reply *comm.R
 }
 
 func usage() string {
-	help := `swagerctl [<flags>] <method> [<submethod>] [args...] [...]
+	help := `swagerctl [<flags>] <method> [<submethod>] [args...]
 
   flags:
   -c duration - time to wait for a connection to the swager daemon (default 2s)
   -h help
 
   methods:
-    methods are executed in order by type:
-      server, init, log, send, config
-
   --server - send a server control command
   --init   - initialze a new block instance
   --log    - set log level on a block
@@ -207,7 +204,7 @@ func usage() string {
   --send <tagname> arg0 [args...]
 
     <tagname> is the user-provided name for a block instance
-    arg0 [args...] are the argument to send to the block instance
+    arg0 [args...] are the arguments to send to the block instance
     not all block types support receiving arguments using send
     see the block documentation for the supported args
 
