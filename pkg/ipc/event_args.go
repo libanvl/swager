@@ -1,5 +1,9 @@
 package ipc
 
+type EventArgs interface {
+	WorkspaceChange | ModeChange | WindowChange | BindingChange | ShutdownChange | Tick
+}
+
 type WorkspaceChange struct {
 	Change  WorkspaceChangeType `json:"change"`
 	Current *Node               `json:"current"`
@@ -37,9 +41,5 @@ type Tick struct {
 	Payload string `json:"payload"`
 }
 
-type BarStateUpdate struct {
-	ID                string `json:"id"`
-	VisibleByModifier bool   `json:"visible_by_modifier"`
-}
-
+// BarState_Update is not implemented
 // Input is not implemented

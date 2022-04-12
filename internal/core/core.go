@@ -29,12 +29,12 @@ type Client interface {
 
 // Sub exports a limited set of methods for use by core.Block instances.
 type Sub interface {
-	WorkspaceChanges(ipc.WorkspaceChangeHandler) (ipc.Cookie, error)
-	WindowChanges(ipc.WindowChangeHandler) (ipc.Cookie, error)
-	BindingChanges(ipc.BindingChangeHandler) (ipc.Cookie, error)
-	BindingModeChanges(ipc.BindingModeChangeHandler) (ipc.Cookie, error)
-	ShutdownChanges(ipc.ShutdownChangeHandler) (ipc.Cookie, error)
-	Ticks(ipc.TickHandler) (ipc.Cookie, error)
+	WorkspaceChanges(func(ipc.WorkspaceChange)) (ipc.Cookie, error)
+	WindowChanges(func(ipc.WindowChange)) (ipc.Cookie, error)
+	BindingChanges(func(ipc.BindingChange)) (ipc.Cookie, error)
+	ModeChanges(func(ipc.ModeChange)) (ipc.Cookie, error)
+	ShutdownChanges(func(ipc.ShutdownChange)) (ipc.Cookie, error)
+	Ticks(func(ipc.Tick)) (ipc.Cookie, error)
 }
 
 type ServerControlRequest int8

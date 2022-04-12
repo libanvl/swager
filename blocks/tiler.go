@@ -17,18 +17,16 @@ type Tiler struct {
 
 func init() {
 	var _ core.BlockInitializer = (*Tiler)(nil)
-	var _ ipc.BindingModeChangeHandler = (*Tiler)(nil)
-	var _ ipc.WindowChangeHandler = (*Tiler)(nil)
 }
 
 func (t *Tiler) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
 	t.client = client
-	wincookie, err := sub.WindowChanges(t)
+	wincookie, err := sub.WindowChanges(t.WindowChanged)
 	if err != nil {
 		return err
 	}
 
-	modcookie, err := sub.BindingModeChanges(t)
+	modcookie, err := sub.ModeChanges(t.ModeChange)
 	if err != nil {
 		return err
 	}
@@ -43,14 +41,14 @@ func (t *Tiler) SetLogLevel(level core.LogLevel) {
 	t.loglevel = level
 }
 
-func (t *Tiler) BindingModeChange(evt ipc.ModeChange) {
+func (t *Tiler) ModeChange(evt ipc.ModeChange) {
 	if t.loglevel.Debug() {
-		t.opts.Log.Printf("tiler", "Binding Mode Change event: %v", evt)
+		t.opts.Log.Printf("tiler", "Mode Change event: %v", evt)
 	}
 	setLayout(t)
 }
 
-func (t *Tiler) WindowChange(evt ipc.WindowChange) {
+func (t *Tiler) WindowChanged(evt ipc.WindowChange) {
 	if t.loglevel.Debug() {
 		t.opts.Log.Printf("tiler", "Window Change event: %v %v", evt.Change, evt.Container.Name)
 	}

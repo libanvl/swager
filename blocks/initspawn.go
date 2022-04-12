@@ -22,7 +22,6 @@ type InitSpawn struct {
 func init() {
 	var _ core.BlockInitializer = (*InitSpawn)(nil)
 	var _ core.Receiver = (*InitSpawn)(nil)
-	var _ ipc.WorkspaceChangeHandler = (*InitSpawn)(nil)
 }
 
 func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
@@ -30,7 +29,7 @@ func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, a
 	i.opts = opts
 	i.spawns = map[workspace]string{}
 	i.spawnsmx = sync.Mutex{}
-	cookie, err := sub.WorkspaceChanges(i)
+	cookie, err := sub.WorkspaceChanges(i.WorkspaceChanged)
 	if err != nil {
 		return err
 	}
@@ -43,7 +42,7 @@ func (i *InitSpawn) SetLogLevel(level core.LogLevel) {
 	i.loglevel = level
 }
 
-func (i *InitSpawn) WorkspaceChange(evt ipc.WorkspaceChange) {
+func (i *InitSpawn) WorkspaceChanged(evt ipc.WorkspaceChange) {
 	if i.loglevel.Debug() {
 		i.opts.Log.Printf("initspawn", "got workspace event: %#v, %s", evt.Change, evt.Current.Name)
 	}

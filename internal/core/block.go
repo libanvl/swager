@@ -15,10 +15,6 @@ type Receiver interface {
 	Receive(args []string) error
 }
 
-type JsonReporter interface {
-	Report(args []string) (string, error)
-}
-
 type BlockRunnerCloser interface {
 	BlockInitializer
 	Runner

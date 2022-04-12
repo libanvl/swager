@@ -6,33 +6,26 @@ import (
 )
 
 type SwayMon struct {
-	sub       core.Sub
-	opts      *core.Options
-	shutdown  ipc.Cookie
-	workspace ipc.Cookie
-	loglevel  core.LogLevel
+	sub      core.Sub
+	opts     *core.Options
+	loglevel core.LogLevel
 }
 
 func init() {
 	var _ core.BlockInitializer = (*SwayMon)(nil)
-	var _ ipc.WorkspaceChangeHandler = (*SwayMon)(nil)
-	var _ ipc.ShutdownChangeHandler = (*SwayMon)(nil)
 }
 
 func (m *SwayMon) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
 	m.opts = opts
 	m.sub = sub
-	scookie, err := m.sub.ShutdownChanges(m)
+	_, err := m.sub.ShutdownChanges(m.ShutdownChanged)
 	if err != nil {
 		return err
 	}
-	wcookie, err := m.sub.WorkspaceChanges(m)
+	_, err = m.sub.WorkspaceChanges(m.WorkspaceChanged)
 	if err != nil {
 		return err
 	}
-
-	m.shutdown = scookie
-	m.workspace = wcookie
 
 	return nil
 }
@@ -41,7 +34,7 @@ func (m *SwayMon) SetLogLevel(level core.LogLevel) {
 	m.loglevel = level
 }
 
-func (m *SwayMon) ShutdownChange(evt ipc.ShutdownChange) {
+func (m *SwayMon) ShutdownChanged(evt ipc.ShutdownChange) {
 	if m.loglevel.Debug() {
 		m.opts.Log.Printf("swaymon", "got shutdown event: %#v", evt.Change)
 	}
@@ -54,7 +47,7 @@ func (m *SwayMon) ShutdownChange(evt ipc.ShutdownChange) {
 	return
 }
 
-func (m *SwayMon) WorkspaceChange(evt ipc.WorkspaceChange) {
+func (m *SwayMon) WorkspaceChanged(evt ipc.WorkspaceChange) {
 	if m.loglevel.Debug() {
 		m.opts.Log.Printf("swaymon", "got workspace event: %#v", evt.Change)
 	}
