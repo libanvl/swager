@@ -22,9 +22,10 @@ func init() {
 	var _ core.BlockInitializer = (*Autolay)(nil)
 }
 
-func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
+func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log core.Logger, args ...string) error {
 	a.Client = client
 	a.Opts = opts
+	a.Log = log
 	a.workspaces = make(map[string]LayoutEngine)
 
 	parser := stoker.Parser(
@@ -64,7 +65,7 @@ func (a *Autolay) SetLogLevel(level core.LogLevel) {
 func (a *Autolay) WindowChanged(evt ipc.WindowChange) {
 	workspaces, err := a.Client.Workspaces()
 	if err != nil {
-		a.Opts.Log.Printf("autolay", "(%v) Failed getting workspaces", evt.Container.ID)
+		a.Log.Defaultf("(%v) Failed getting workspaces", evt.Container.ID)
 		return
 	}
 
@@ -73,24 +74,21 @@ func (a *Autolay) WindowChanged(evt ipc.WindowChange) {
 
 	focused := core.Focused(workspaces)
 	if focused == nil {
-		a.Opts.Log.Printf("autolay", "(%v) Failed finding focused workspace", evt.Container.ID)
+		a.Log.Defaultf("(%v) Failed finding focused workspace", evt.Container.ID)
+		return
 	}
 
 	eng, ok := a.workspaces[focused.Name]
 	if !ok {
-		if a.LogLevel.Debug() {
-			a.Opts.Log.Printf("autolay", "(%v) Parent not managed: %v", evt.Container.ID, focused.Name)
-		}
+		a.Log.Debugf("(%v) Parent not managed: %v", evt.Container.ID, focused.Name)
 		return
 	}
 
-	if a.LogLevel.Debug() {
-		a.Opts.Log.Printf("autolay", "(%v) Using engine: %#v", evt.Container.ID, eng)
-	}
+	a.Log.Debugf("(%v) Using engine: %#v", evt.Container.ID, eng)
 
 	root, err := a.Client.Tree()
 	if err != nil {
-		a.Opts.Log.Printf("autolay", "(%v) Failed getting tree: %v", evt.Container.ID, err)
+		a.Log.Defaultf("(%v) Failed getting tree: %v", evt.Container.ID, err)
 	}
 
 	workspace_node := node.First(
@@ -101,24 +99,22 @@ func (a *Autolay) WindowChanged(evt ipc.WindowChange) {
 
 	err = eng(evt.Change, workspace_node)
 	if err != nil {
-		a.Opts.Log.Printf("autolay", "(%v) Error executing step: %#v", err)
+		a.Log.Defaultf("(%v) Error executing step: %#v", err)
 	}
 }
 
 func (a *Autolay) Command(engine_name string, cmd string) error {
-	if a.LogLevel.Debug() {
-		a.Opts.Log.Printf("autolay", "{%v} running command: %v", engine_name, cmd)
-	}
+	a.Log.Debugf("{%v} running command: %v", engine_name, cmd)
 
 	res, err := a.Client.Command(cmd)
 	if err != nil {
-		a.Opts.Log.Printf("autolay", "{%v} ipc error: %v", engine_name, err)
+		a.Log.Defaultf("{%v} ipc error: %v", engine_name, err)
 		return err
 	}
 
 	if a.LogLevel.Debug() {
 		for _, r := range res {
-			a.Opts.Log.Printf("autolay", "{%v} Command result: %v", engine_name, r)
+			a.Log.Debugf("{%v} Command result: %v", engine_name, r)
 		}
 	}
 

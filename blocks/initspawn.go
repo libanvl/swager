@@ -16,6 +16,7 @@ type InitSpawn struct {
 	workspaceevts ipc.Cookie
 	spawns        map[workspace]string
 	spawnsmx      sync.Mutex
+	log           core.Logger
 	loglevel      core.LogLevel
 }
 
@@ -24,9 +25,10 @@ func init() {
 	var _ core.Receiver = (*InitSpawn)(nil)
 }
 
-func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
+func (i *InitSpawn) Init(client core.Client, sub core.Sub, opts *core.Options, log core.Logger, args ...string) error {
 	i.client = client
 	i.opts = opts
+	i.log = log
 	i.spawns = map[workspace]string{}
 	i.spawnsmx = sync.Mutex{}
 	cookie, err := sub.WorkspaceChanges(i.WorkspaceChanged)
@@ -43,9 +45,7 @@ func (i *InitSpawn) SetLogLevel(level core.LogLevel) {
 }
 
 func (i *InitSpawn) WorkspaceChanged(evt ipc.WorkspaceChange) {
-	if i.loglevel.Debug() {
-		i.opts.Log.Printf("initspawn", "got workspace event: %#v, %s", evt.Change, evt.Current.Name)
-	}
+	i.log.Debugf("got workspace event: %#v, %s", evt.Change, evt.Current.Name)
 	if evt.Change != ipc.InitWorkspace {
 		return
 	}
@@ -54,29 +54,26 @@ func (i *InitSpawn) WorkspaceChanged(evt ipc.WorkspaceChange) {
 	cmd, ok := i.spawns[workspace(evt.Current.Name)]
 	i.spawnsmx.Unlock()
 	if !ok {
-		if i.loglevel.Debug() {
-			i.opts.Log.Printf("initspawn", "no spawn registered for workspace: '%s'", evt.Current.Name)
-		}
+		i.log.Defaultf("no spawn registered for workspace: '%s'", evt.Current.Name)
 		return
 	}
 
 	if i.loglevel.Debug() {
-		i.opts.Log.Printf("initspawn", "nodes count: %d", len(evt.Current.Nodes))
+		i.log.Debugf("nodes count: %d", len(evt.Current.Nodes))
 	}
+
 	if len(evt.Current.Nodes) < 1 {
 
-		if i.loglevel.Debug() {
-			i.opts.Log.Printf("initspawn", "running spawn command: '%s'", cmd)
-		}
+		i.log.Defaultf("running spawn command: '%s'", cmd)
 
 		res, err := i.client.Command(cmd)
 		if err != nil {
-			i.opts.Log.Print("initspawn", err.Error())
+			i.log.Default(err.Error())
 		}
 
 		for _, r := range res {
 			if !r.Success {
-				i.opts.Log.Print("initspawn", r.Error)
+				i.log.Default(r.Error)
 			}
 		}
 	}
@@ -96,8 +93,6 @@ func (i *InitSpawn) Receive(args []string) error {
 		i.spawns[workspace(args[0])] = args[1]
 	}
 
-	if i.loglevel.Info() {
-		i.opts.Log.Printf("initspawn", "added spawn for workspace init: %s, '%s'", args[0], args[1])
-	}
+	i.log.Infof("added spawn for workspace init: %s, '%s'", args[0], args[1])
 	return nil
 }

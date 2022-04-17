@@ -6,10 +6,11 @@ type BasicBlock struct {
 	Client   Client
 	Opts     *Options
 	LogLevel LogLevel
+	Log      Logger
 }
 
 type BlockInitializer interface {
-	Init(client Client, sub Sub, opts *Options, args ...string) error
+	Init(client Client, sub Sub, opts *Options, log Logger, args ...string) error
 	SetLogLevel(level LogLevel)
 }
 

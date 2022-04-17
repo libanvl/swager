@@ -61,6 +61,5 @@ func (scc ServerControlChannel) RequestExit() {
 // Options are shared options for use by core.Block instances.
 // Use the Log channel to send log data back to the daemon.
 type Options struct {
-	Log    LogChannel
 	Server ServerControlChannel
 }

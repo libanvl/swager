@@ -39,10 +39,11 @@ func main() {
 	logch := make(chan core.LogMessage, 10)
 	creqch := make(chan core.ServerControlRequest)
 	ctrlch := make(chan *comm.ControlArgs)
-	opts := core.Options{Log: logch, Server: creqch}
+	opts := core.Options{Server: creqch}
 	config := comm.ServerConfig{
 		Blocks: core.Blocks,
 		Ctrl:   ctrlch,
+		Log:    logch,
 	}
 
 	server, err := comm.CreateServer(&config, &opts)
@@ -77,7 +78,9 @@ func main() {
 				go server.Control(&comm.ControlArgs{Command: comm.ResetServer}, &comm.Reply{})
 			}
 		case l := <-logch:
-			log.Println(l)
+			if loglevel >= l.Level() {
+				log.Println(l)
+			}
 		case cmdargs := <-ctrlch:
 			if cmdargs.Command != comm.ExitServer {
 				continue

@@ -14,6 +14,7 @@ type ExecNew struct {
 	opts     *core.Options
 	min      int
 	max      int
+	log      core.Logger
 	loglevel core.LogLevel
 }
 
@@ -22,9 +23,10 @@ func init() {
 	var _ core.Receiver = (*ExecNew)(nil)
 }
 
-func (e *ExecNew) Init(client core.Client, sub core.Sub, opts *core.Options, args ...string) error {
+func (e *ExecNew) Init(client core.Client, sub core.Sub, opts *core.Options, log core.Logger, args ...string) error {
 	e.client = client
 	e.opts = opts
+	e.log = log
 
 	if len(args) != 2 {
 		return errors.New("2 arguments are required: <min> <max>")
@@ -36,7 +38,7 @@ func (e *ExecNew) Init(client core.Client, sub core.Sub, opts *core.Options, arg
 		return errors.New("Arguments must be ints")
 	}
 
-	e.opts.Log.Printf("execnew", "min: %d max: %d", min, max)
+	e.log.Infof("min: %d max: %d", min, max)
 
 	e.min = min
 	e.max = max
@@ -52,8 +54,9 @@ func (e *ExecNew) Receive(args []string) error {
 	if err != nil {
 		return err
 	}
+
 	if e.loglevel.Debug() {
-		e.opts.Log.Printf("execnew", "got workspaces. count: %d", len(ws))
+		e.log.Debugf("got workspaces. count: %d", len(ws))
 	}
 
 	curr := e.min - 1
@@ -70,9 +73,7 @@ func (e *ExecNew) Receive(args []string) error {
 	next := curr + 1
 	cmd := strings.Join(args, " ")
 
-	if e.loglevel.Debug() {
-		e.opts.Log.Printf("execnew", "running command on workspace: %d, '%s'", next, cmd)
-	}
+	e.log.Debugf("running command on workspace: %d, '%s'", next, cmd)
 
 	res, err := e.client.Command(fmt.Sprintf("workspace number %d, exec %s", next, cmd))
 	if err != nil {
@@ -80,9 +81,7 @@ func (e *ExecNew) Receive(args []string) error {
 	}
 
 	for _, r := range res {
-		if e.loglevel.Debug() {
-			e.opts.Log.Printf("execnew", "result: %#v", r)
-		}
+		e.log.Debugf("result: %#v", r)
 		if !r.Success {
 			return errors.New(r.Error)
 		}

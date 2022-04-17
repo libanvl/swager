@@ -14,10 +14,6 @@ func (a *Autolay) autoTiler(wct ipc.WindowChangeType, ws *ipc.Node) error {
 	cwin := node.Count(ws, node.IsLeaf)
 	is_even := (cwin % 2) == 0
 
-	if a.LogLevel.Debug() {
-		a.Opts.Log.Printf("autolay", "{autotiler} ws.name:  %v, cwin:  %v, is_even: %v", ws.Name, cwin, is_even)
-	}
-
 	if is_even {
 		a.Command("autotiler", "splitv")
 	} else {
