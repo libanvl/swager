@@ -32,7 +32,6 @@ func main() {
 		stoker.Def("--init"),
 		stoker.Def("--log"),
 		stoker.Def("--send"),
-		stoker.Def("--config"),
 	)
 
 	tokenmap := parser.Parse(args...)
@@ -96,19 +95,10 @@ func main() {
 
 	reply := new(comm.Reply)
 
-	if err := tokenmap.ProcessSet("--server", func(ts stoker.TokenSet) error {
-		for _, sc := range ts {
-			args, err := comm.ToServerArgs(sc)
-			if err != nil {
-				return err
-			}
-			if err := call(client, comm.Control, args, reply); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
+	if err := tokenmap.ProcessSet("--server", processTokenSet(client, reply, comm.Control)); err != nil {
 		log.Fatal("error: ", "--server ", err)
+	} else {
+		return
 	}
 
 	if err := tokenmap.ProcessSet("--init", processTokenSet(client, reply, comm.InitBlock)); err != nil {
@@ -121,10 +111,6 @@ func main() {
 
 	if err := tokenmap.ProcessSet("--send", processTokenSet(client, reply, comm.SendToTag)); err != nil {
 		log.Fatal("error: ", "--send ", err)
-	}
-
-	if err := tokenmap.ProcessSet("--config", processTokenSet(client, reply, comm.Control)); err != nil {
-		log.Fatal("error: ", "--config ", err)
 	}
 }
 
@@ -150,7 +136,7 @@ func toSwagerArgs(op comm.SwagerMethod, tl stoker.TokenList) (comm.SwagerArgs, e
 	case comm.SendToTag:
 		return comm.ToSendToTagArgs(tl)
 	case comm.Control:
-		return comm.ToConfigArgs(tl)
+		return comm.ToServerArgs(tl)
 	case comm.SetTagLog:
 		return comm.ToSetTagLogArgs(tl)
 	}
@@ -180,7 +166,6 @@ func usage() string {
   --init   - initialze a new block instance
   --log    - set log level on a block
   --send   - send a command to an initialized block instance
-  --config - send a configuration command
 
   --init <tagname> <blockname> [args...]
 
@@ -211,17 +196,15 @@ func usage() string {
     examples:
       --send myexecnew "exec alacritty"
 
-  --config <submethod>
-
-    submethods:
-      commit - notify the server that user configuration is complete, and to start monitoring events
-      reset  - notify the server to stop monitoring events, and close all configured blocks
-
   --server <submethod>
 
+    server method must be the only method in a call to swagerctl
+
     submethods:
-      ping - ping the server
-      exit - notify the server to shutdown`
+      listen - start monitoring events, no more blocks can be initialized
+      reset  - stop monitoring events, close all initialized blocks
+      ping   - ping the server
+      exit   - notify the server to shutdown`
 
 	return help
 }
