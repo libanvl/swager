@@ -1,21 +1,33 @@
 package core
 
-import (
-	"github.com/libanvl/swager/pkg/ipc"
-)
+import "github.com/libanvl/swager/pkg/ipc"
 
-func FindParent(root *ipc.Node, childid int) *ipc.Node {
-	return root.FindChild(isParentOf(childid))
+func Focused(ws []ipc.Workspace) *ipc.Workspace {
+	for _, w := range ws {
+		if w.Focused {
+			return &w
+		}
+	}
+
+	return nil
 }
 
-func isParentOf(childid int) func(n *ipc.Node) bool {
-	return func(nn *ipc.Node) bool {
-		for _, nnn := range nn.Nodes {
-			if nnn.ID == childid {
-				return true
-			}
+func Accept[T ~string](s T, allowed ...T) bool {
+	for _, t := range allowed {
+		if s == t {
+			return true
 		}
-
-		return false
 	}
+
+	return false
+}
+
+func Deny[T ~string](s T, denied ...T) bool {
+	for _, t := range denied {
+		if s == t {
+			return true
+		}
+	}
+
+	return false
 }

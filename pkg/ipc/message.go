@@ -91,3 +91,27 @@ func eventNames(ps []EventPayloadType) []string {
 
 	return s
 }
+
+func ToEventPayloadType(name string) (EventPayloadType, bool) {
+	switch name {
+	case "workspace":
+		return WorkspaceEvent, true
+	case "mode":
+		return ModeEvent, true
+	case "window":
+		return WindowEvent, true
+	case "barconfig_update":
+		return BarconfigUpdateEvent, true
+	case "binding":
+		return BindingEvent, true
+	case "shutdown":
+		return ShutdownEvent, true
+	case "tick":
+		return TickEvent, true
+	case "bar_status_update":
+		return BarStateUpdateEvent, true
+	case "input":
+		return InputEvent, true
+	}
+	return EventPayloadType(0), false
+}

@@ -18,8 +18,8 @@ type Node struct {
 	Marks              []string            `json:"marks"`
 	Focused            bool                `json:"focused"`
 	Focus              []int               `json:"focus"`
-	Nodes              []Node              `json:"nodes"`
-	FloatingNodes      []Node              `json:"floating_nodes"`
+	Nodes              []*Node             `json:"nodes"`
+	FloatingNodes      []*Node             `json:"floating_nodes"`
 	Representation     *string             `json:"representation"`
 	FullscreenMode     *FullscreenModeType `json:"fullscreen_mode"`
 	AppID              *string             `json:"app_id"`
