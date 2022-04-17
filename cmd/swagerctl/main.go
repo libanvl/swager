@@ -97,8 +97,6 @@ func main() {
 
 	if err := tokenmap.ProcessSet("--server", processTokenSet(client, reply, comm.Control)); err != nil {
 		log.Fatal("error: ", "--server ", err)
-	} else {
-		return
 	}
 
 	if err := tokenmap.ProcessSet("--init", processTokenSet(client, reply, comm.InitBlock)); err != nil {
