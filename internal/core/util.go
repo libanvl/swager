@@ -31,3 +31,17 @@ func Deny[T ~string](s T, denied ...T) bool {
 
 	return false
 }
+
+func First[T any](ts []*T, walk func(*T) []*T, pred func(*T) bool) *T {
+	for _, t := range ts {
+		if pred(t) {
+			return t
+		}
+
+		if tt := First(walk(t), walk, pred); tt != nil {
+			return tt
+		}
+	}
+
+	return nil
+}

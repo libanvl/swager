@@ -6,8 +6,12 @@ import (
 	"github.com/libanvl/swager/pkg/ipc"
 )
 
-func (a *Autolay) autoTiler(wct ipc.WindowChangeType, ws *ipc.Node) error {
-	if core.Deny(wct, ipc.TitleWindow) {
+func (a *Autolay) autoTiler(evt ipc.WindowChange, ws *ipc.Node) error {
+	if evt.Container.Type == ipc.FloatingConNode {
+		return nil
+	}
+
+	if core.Deny(evt.Change, ipc.TitleWindow) {
 		return nil
 	}
 
@@ -22,8 +26,12 @@ func (a *Autolay) autoTiler(wct ipc.WindowChangeType, ws *ipc.Node) error {
 	return nil
 }
 
-func (a *Autolay) masterStack(wct ipc.WindowChangeType, ws *ipc.Node) error {
-	if core.Deny(wct, ipc.TitleWindow, ipc.FocusWindow) {
+func (a *Autolay) masterStack(evt ipc.WindowChange, ws *ipc.Node) error {
+	if evt.Container.Type == ipc.FloatingConNode {
+		return nil
+	}
+
+	if core.Deny(evt.Change, ipc.TitleWindow, ipc.FocusWindow) {
 		return nil
 	}
 

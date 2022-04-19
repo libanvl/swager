@@ -9,7 +9,7 @@ import (
 	"github.com/libanvl/swager/pkg/stoker"
 )
 
-type LayoutEngine func(wct ipc.WindowChangeType, ws *ipc.Node) error
+type LayoutEngine func(evt ipc.WindowChange, ws *ipc.Node) error
 
 type Autolay struct {
 	core.BasicBlock
@@ -63,6 +63,10 @@ func (a *Autolay) SetLogLevel(level core.LogLevel) {
 }
 
 func (a *Autolay) WindowChanged(evt ipc.WindowChange) {
+	if evt.Container.Type == ipc.FloatingConNode {
+		return
+	}
+
 	workspaces, err := a.Client.Workspaces()
 	if err != nil {
 		a.Log.Defaultf("(%v) Failed getting workspaces", evt.Container.ID)
@@ -97,7 +101,7 @@ func (a *Autolay) WindowChanged(evt ipc.WindowChange) {
 			node.MatchType(ipc.WorkspaceNode),
 			node.MatchName(focused.Name)))
 
-	err = eng(evt.Change, workspace_node)
+	err = eng(evt, workspace_node)
 	if err != nil {
 		a.Log.Defaultf("(%v) Error executing step: %#v", err)
 	}
