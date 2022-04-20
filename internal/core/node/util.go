@@ -21,11 +21,21 @@ func First(root *ipc.Node, predicate NodePredicate) *ipc.Node {
 		}
 	}
 
+	for _, n := range root.FloatingNodes {
+		if nn := First(n, predicate); nn != nil {
+			return nn
+		}
+	}
+
 	return nil
 }
 
 func Count(root *ipc.Node, pred NodePredicate) int {
 	count := 0
+
+	if root == nil {
+		return count
+	}
 
 	if pred(root) {
 		count++
@@ -46,6 +56,10 @@ func IsLeaf(n *ipc.Node) bool {
 	return len(n.Nodes) == 0
 }
 
+func IsFocused(n *ipc.Node) bool {
+	return n.Focused
+}
+
 func MatchName(name string) NodePredicate {
 	return func(n *ipc.Node) bool {
 		return n.Name == name
@@ -61,6 +75,12 @@ func MatchType(t ipc.NodeType) NodePredicate {
 func MatchAnd(left NodePredicate, right NodePredicate) NodePredicate {
 	return func(n *ipc.Node) bool {
 		return left(n) && right(n)
+	}
+}
+
+func MatchNot(pred NodePredicate) NodePredicate {
+	return func(n *ipc.Node) bool {
+		return !pred(n)
 	}
 }
 

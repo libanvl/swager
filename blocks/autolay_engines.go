@@ -7,11 +7,15 @@ import (
 )
 
 func (a *Autolay) autoTiler(evt ipc.WindowChange, ws *ipc.Node) error {
-	if evt.Container.Type == ipc.FloatingConNode {
+	if core.Deny(evt.Change, ipc.TitleWindow, ipc.NewWindow) {
+		a.Log.Debugf("{autotiler} Denying change type: %v", evt.Change)
 		return nil
 	}
 
-	if core.Deny(evt.Change, ipc.TitleWindow) {
+	focused := node.First(ws, node.MatchAnd(node.IsFocused, node.IsLeaf))
+
+	if !IsTilingEligible(focused) {
+		a.Log.Debug("{autotiler} focused is not eligible for tiling")
 		return nil
 	}
 
@@ -27,11 +31,15 @@ func (a *Autolay) autoTiler(evt ipc.WindowChange, ws *ipc.Node) error {
 }
 
 func (a *Autolay) masterStack(evt ipc.WindowChange, ws *ipc.Node) error {
-	if evt.Container.Type == ipc.FloatingConNode {
+	if core.Deny(evt.Change, ipc.TitleWindow, ipc.FocusWindow) {
+		a.Log.Debugf("{masterstack} Denying change type: %v", evt.Change)
 		return nil
 	}
 
-	if core.Deny(evt.Change, ipc.TitleWindow, ipc.FocusWindow) {
+	focused := node.First(ws, node.MatchAnd(node.IsFocused, node.IsLeaf))
+
+	if !IsTilingEligible(focused) {
+		a.Log.Debug("{masterstack} focused is not eligible for tiling")
 		return nil
 	}
 

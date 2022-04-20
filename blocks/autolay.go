@@ -29,19 +29,19 @@ func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log
 	a.workspaces = make(map[string]LayoutEngine)
 
 	parser := stoker.NewParser(
-		stoker.NewFlag("autotiler", func(_ any, tl stoker.TokenList) error {
+		stoker.NewFlag("autotiler", func(al *Autolay, tl stoker.TokenList) error {
 			for _, ws := range tl {
-				a.workspaces[ws] = a.autoTiler
-				a.Log.Infof("Managing %v with autotiler", ws)
+				al.workspaces[ws] = al.autoTiler
+				al.Log.Infof("Managing %v with autotiler", ws)
 			}
 
 			return nil
 		}),
 
-		stoker.NewFlag("masterstack", func(_ any, tl stoker.TokenList) error {
+		stoker.NewFlag("masterstack", func(al *Autolay, tl stoker.TokenList) error {
 			for _, ws := range tl {
-				a.workspaces[ws] = a.masterStack
-				a.Log.Infof("Managing %v with masterstack", ws)
+				al.workspaces[ws] = al.masterStack
+				al.Log.Infof("Managing %v with masterstack", ws)
 			}
 
 			return nil
@@ -52,7 +52,7 @@ func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log
 
 	a.Log.Defaultf("executor: %#v", handler)
 
-	if err := handler.HandleAll(nil); err != nil {
+	if err := handler.HandleAll(a); err != nil {
 		a.Log.Debugf("Executor error: %#v", err)
 		return err
 	}
@@ -129,4 +129,21 @@ func (a *Autolay) Command(engine_name string, cmd string) error {
 	}
 
 	return nil
+}
+
+func IsTilingEligible(node *ipc.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	if node.FullscreenMode != nil &&
+		*node.FullscreenMode != ipc.NoneFullscreenMode {
+		return false
+	}
+
+	if node.Type != ipc.ConNode {
+		return false
+	}
+
+	return true
 }

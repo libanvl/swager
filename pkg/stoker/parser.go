@@ -74,7 +74,9 @@ func (p parser[Context]) Parse(args ...string) FlagHandlerList[Context] {
 
 		// the current token is an argument
 		// - append the token to the current tokenlist
-		currlist = append(currlist, token)
+		if currlist != nil {
+			currlist = append(currlist, token)
+		}
 	}
 
 	if currflag != nil && len(currlist) > 0 {
