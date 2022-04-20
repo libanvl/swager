@@ -66,14 +66,14 @@ func (lm PrefixLogMessage) Level() LogLevel {
 
 type LogChannel chan<- LogMessage
 
-func (lc LogChannel) Print(level LogLevel, prefix string, msg string) {
+func (lc LogChannel) Send(level LogLevel, prefix string, msg string) {
 	go func() {
 		lc <- PrefixLogMessage{prefix, msg, level}
 	}()
 }
 
-func (lc LogChannel) Printf(level LogLevel, prefix string, format string, args ...interface{}) {
-	lc.Print(level, prefix, fmt.Sprintf(format, args...))
+func (lc LogChannel) Sendf(level LogLevel, prefix string, format string, args ...interface{}) {
+	lc.Send(level, prefix, fmt.Sprintf(format, args...))
 }
 
 type prefixLogger struct {
@@ -94,26 +94,26 @@ func NewPrefixLogger(prefix string, logch LogChannel) Logger {
 	return &prefixLogger{logch: logch, prefix: prefix}
 }
 
-func (l *prefixLogger) Default(msg string) {
-	l.logch.Print(DefaultLog, l.prefix, msg)
+func (l prefixLogger) Default(msg string) {
+	l.logch.Send(DefaultLog, l.prefix, msg)
 }
 
-func (l *prefixLogger) Defaultf(format string, args ...any) {
-	l.logch.Printf(DefaultLog, l.prefix, format, args...)
+func (l prefixLogger) Defaultf(format string, args ...any) {
+	l.logch.Sendf(DefaultLog, l.prefix, format, args...)
 }
 
-func (l *prefixLogger) Info(msg string) {
-	l.logch.Print(InfoLog, l.prefix, msg)
+func (l prefixLogger) Info(msg string) {
+	l.logch.Send(InfoLog, l.prefix, msg)
 }
 
-func (l *prefixLogger) Infof(format string, args ...any) {
-	l.logch.Printf(InfoLog, l.prefix, format, args...)
+func (l prefixLogger) Infof(format string, args ...any) {
+	l.logch.Sendf(InfoLog, l.prefix, format, args...)
 }
 
-func (l *prefixLogger) Debug(msg string) {
-	l.logch.Print(DebugLog, l.prefix, msg)
+func (l prefixLogger) Debug(msg string) {
+	l.logch.Send(DebugLog, l.prefix, msg)
 }
 
-func (l *prefixLogger) Debugf(format string, args ...any) {
-	l.logch.Printf(DebugLog, l.prefix, format, args...)
+func (l prefixLogger) Debugf(format string, args ...any) {
+	l.logch.Sendf(DebugLog, l.prefix, format, args...)
 }

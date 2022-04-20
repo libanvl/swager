@@ -28,32 +28,38 @@ func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log
 	a.Log = log
 	a.workspaces = make(map[string]LayoutEngine)
 
-	parser := stoker.Parser(
-		stoker.Def("--autotiler"),
-		stoker.Def("--masterstack"),
+	parser := stoker.NewParser(
+		stoker.NewFlag("autotiler", func(_ any, tl stoker.TokenList) error {
+			for _, ws := range tl {
+				a.workspaces[ws] = a.autoTiler
+				a.Log.Infof("Managing %v with autotiler", ws)
+			}
+
+			return nil
+		}),
+
+		stoker.NewFlag("masterstack", func(_ any, tl stoker.TokenList) error {
+			for _, ws := range tl {
+				a.workspaces[ws] = a.masterStack
+				a.Log.Infof("Managing %v with masterstack", ws)
+			}
+
+			return nil
+		}),
 	)
 
-	tokenmap := parser.Parse(args...)
+	handler := parser.Parse(args...)
 
-	tokenmap.ProcessSet("--autotiler", func(ts stoker.TokenSet) error {
-		for _, tokenlist := range ts {
-			for _, ws := range tokenlist {
-				a.workspaces[ws] = a.autoTiler
-			}
-		}
-		return nil
-	})
+	a.Log.Defaultf("executor: %#v", handler)
 
-	tokenmap.ProcessSet("--masterstack", func(ts stoker.TokenSet) error {
-		for _, tokenlist := range ts {
-			for _, ws := range tokenlist {
-				a.workspaces[ws] = a.masterStack
-			}
-		}
-		return nil
-	})
+	if err := handler.HandleAll(nil); err != nil {
+		a.Log.Debugf("Executor error: %#v", err)
+		return err
+	}
 
-	sub.WindowChanges(a.WindowChanged)
+	if _, err := sub.WindowChanges(a.WindowChanged); err != nil {
+		return err
+	}
 
 	return nil
 }

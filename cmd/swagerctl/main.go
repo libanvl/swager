@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -16,40 +17,60 @@ import (
 )
 
 func main() {
-	var flagCtimeout time.Duration = 2 * time.Second
+	flagHelp := flag.Bool("h", false, "show command usage")
+	flagCtimeout := flag.Duration("c", 2*time.Second, "time to wait for a connection to the swager daemon")
 
-	args := os.Args[1:]
+	flag.Parse()
+	args := flag.Args()
 
-	if len(args) < 2 {
-		fmt.Println(usage())
-		os.Exit(0)
-	}
-
-	parser := stoker.Parser(
-		stoker.DefArgs("-h", false),
-		stoker.Def("-c"),
-		stoker.Def("--server"),
-		stoker.Def("--init"),
-		stoker.Def("--log"),
-		stoker.Def("--send"),
-	)
-
-	tokenmap := parser.Parse(args...)
-
-	if parser.Present.Contains("-h") {
-		fmt.Println(usage())
-		os.Exit(0)
-	}
-
-	if parser.Present.Contains("-c") {
-		var err error
-		flagCtimeout, err = time.ParseDuration(tokenmap["-c"][0][0])
-		if err != nil {
+	if *flagHelp || len(args) < 2 {
+		if len(args) < 2 {
 			fmt.Println(usage())
-			os.Exit(1)
+			os.Exit(0)
 		}
 	}
 
+	parser := stoker.NewParser(
+		stoker.NewFlag("server", listHandler(comm.Control)),
+		stoker.NewFlag("init", listHandler(comm.InitBlock)),
+		stoker.NewFlag("log", listHandler(comm.SetTagLog)),
+		stoker.NewFlag("send", listHandler(comm.SendToTag)),
+	)
+
+	handler := parser.Parse(args...)
+
+	addr := getSwagerSocketAddress(flagCtimeout)
+
+	if _, err := os.Stat(addr); os.IsNotExist(err) {
+		log.Fatal("swager daemon error: ", err)
+	}
+
+	conn, err := net.DialTimeout("unix", addr, 1*time.Second)
+	if err != nil {
+		log.Fatal("failed dialing ipc: ", err)
+	}
+
+	client := rpc.NewClient(conn)
+	attachSignals(client)
+
+	if err = handler.HandleAll(client); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func attachSignals(client *rpc.Client) {
+	signalch := make(chan os.Signal, 3)
+	signal.Notify(signalch, os.Interrupt)
+	signal.Notify(signalch, syscall.SIGTERM)
+
+	go func(ch chan os.Signal, client *rpc.Client) {
+		<-ch
+		client.Close()
+		os.Exit(1)
+	}(signalch, client)
+}
+
+func getSwagerSocketAddress(flagCtimeout *time.Duration) string {
 	sokch := make(chan string)
 	go func(ch chan<- string) {
 		for {
@@ -68,60 +89,21 @@ func main() {
 	case addr = <-sokch:
 		close(sokch)
 		break
-	case <-time.After(flagCtimeout):
+	case <-time.After(*flagCtimeout):
 		log.Fatal("swager socket timeout error")
 	}
 
-	if _, err := os.Stat(addr); os.IsNotExist(err) {
-		log.Fatal("swager daemon error: ", err)
-	}
-
-	conn, err := net.DialTimeout("unix", addr, 1*time.Second)
-	if err != nil {
-		log.Fatal("failed dialing rpc: ", err)
-	}
-
-	signalch := make(chan os.Signal, 3)
-	signal.Notify(signalch, os.Interrupt)
-	signal.Notify(signalch, syscall.SIGTERM)
-
-	client := rpc.NewClient(conn)
-
-	go func(ch chan os.Signal, client *rpc.Client) {
-		<-ch
-		client.Close()
-		os.Exit(1)
-	}(signalch, client)
-
-	reply := new(comm.Reply)
-
-	if err := tokenmap.ProcessSet("--server", processTokenSet(client, reply, comm.Control)); err != nil {
-		log.Fatal("error: ", "--server ", err)
-	}
-
-	if err := tokenmap.ProcessSet("--init", processTokenSet(client, reply, comm.InitBlock)); err != nil {
-		log.Fatal("error: ", "--init ", err)
-	}
-
-	if err := tokenmap.ProcessSet("--log", processTokenSet(client, reply, comm.SetTagLog)); err != nil {
-		log.Fatal("error: ", "--log ", err)
-	}
-
-	if err := tokenmap.ProcessSet("--send", processTokenSet(client, reply, comm.SendToTag)); err != nil {
-		log.Fatal("error: ", "--send ", err)
-	}
+	return addr
 }
 
-func processTokenSet(client *rpc.Client, reply *comm.Reply, op comm.SwagerMethod) stoker.TokenSetProcessor {
-	return func(ts stoker.TokenSet) error {
-		for _, tokenlist := range ts {
-			args, err := toSwagerArgs(op, tokenlist)
-			if err != nil {
-				return err
-			}
-			if err := call(client, op, args, reply); err != nil {
-				return err
-			}
+func listHandler(op comm.SwagerMethod) stoker.TokenListHandler[*rpc.Client] {
+	return func(c *rpc.Client, tokenlist stoker.TokenList) error {
+		args, err := toSwagerArgs(op, tokenlist)
+		if err != nil {
+			return err
+		}
+		if err := call(c, op, args, new(comm.Reply)); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -156,16 +138,16 @@ func usage() string {
 	help := `swagerctl [<flags>] <method> [<submethod>] [args...]
 
   flags:
-  -c duration - time to wait for a connection to the swager daemon (default 2s)
+  -c <duration> time to wait for swagerd connection
   -h help
 
   methods:
-  --server - send a server control command
-  --init   - initialze a new block instance
-  --log    - set log level on a block
-  --send   - send a command to an initialized block instance
+  server - send a server control command
+  init   - initialze a new block instance
+  log    - set log level on a block
+  send   - send a command to an initialized block instance
 
-  --init <tagname> <blockname> [args...]
+  init <tagname> <blockname> [args...]
 
     <tagname> is a user-provided name for a specific block instance
     <blockname> is the registered name for a block type
@@ -173,18 +155,19 @@ func usage() string {
     see the block documentation for the supported args
 
     examples:
-      --init mytiler tiler
-      --init myexecnew execnew 1 10
+      init myauto autolay masterstack 1 2 3 4
+      init myexecnew execnew 1 10
 
-  --log <tagname> <loglevel>
+  log <tagname> <loglevel>
 
     <tagname> is a user-provided name for a specific block instance
+    <loglevel> is one of: default, info, debug
 
     examples:
-      --init mytiler debug
-      --init mytiler default
+      init myauto debug
+      init myauto default
 
-  --send <tagname> arg0 [args...]
+  send <tagname> arg0 [args...]
 
     <tagname> is the user-provided name for a block instance
     arg0 [args...] are the arguments to send to the block instance
@@ -192,11 +175,11 @@ func usage() string {
     see the block documentation for the supported args
 
     examples:
-      --send myexecnew "exec alacritty"
+      send myexecnew "exec alacritty"
 
-  --server <submethod>
+  server <submethod>
 
-    server method must be the only method in a call to swagerctl
+    server method should be the only method in a call to swagerctl
 
     submethods:
       listen - start monitoring events, no more blocks can be initialized

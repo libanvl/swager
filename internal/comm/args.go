@@ -13,7 +13,7 @@ type SwagerArgs interface {
 
 func ToInitBlockArgs(tl stoker.TokenList) (SwagerArgs, error) {
 	if len(tl) < 2 {
-		return nil, errors.New("--init requires a tagname and blocktype")
+		return nil, errors.New("init requires a tagname and blocktype")
 	}
 
 	args := &InitBlockArgs{Tag: tl[0], Block: tl[1]}
@@ -26,7 +26,7 @@ func ToInitBlockArgs(tl stoker.TokenList) (SwagerArgs, error) {
 
 func ToSendToTagArgs(tl stoker.TokenList) (SwagerArgs, error) {
 	if len(tl) < 2 {
-		return nil, errors.New("--send requires a tagname and arguments")
+		return nil, errors.New("send requires a tagname and arguments")
 	}
 
 	args := &SendToTagArgs{Tag: tl[0], Args: tl[1:]}
@@ -35,7 +35,7 @@ func ToSendToTagArgs(tl stoker.TokenList) (SwagerArgs, error) {
 
 func ToServerArgs(tl stoker.TokenList) (SwagerArgs, error) {
 	if len(tl) < 1 {
-		return nil, errors.New("--server requires a subcommand")
+		return nil, errors.New("server requires a subcommand")
 	}
 
 	switch tl[0] {
@@ -56,7 +56,7 @@ func ToServerArgs(tl stoker.TokenList) (SwagerArgs, error) {
 
 func ToSetTagLogArgs(tl stoker.TokenList) (SwagerArgs, error) {
 	if len(tl) < 2 {
-		return nil, errors.New("--log requires a tag and a log level")
+		return nil, errors.New("log requires a tag and a log level")
 	}
 
 	switch strings.ToLower(tl[1]) {

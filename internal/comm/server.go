@@ -26,6 +26,7 @@ func CreateServer(cfg *ServerConfig, opts *core.Options) (*Swager, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	sub, err := ipc.Subscribe()
 	if err != nil {
 		return nil, err
@@ -34,9 +35,10 @@ func CreateServer(cfg *ServerConfig, opts *core.Options) (*Swager, error) {
 	suberrors := make(chan error, 3)
 	go func() {
 		for serr := range suberrors {
-			cfg.Log.Printf(core.DefaultLog, "server", "%s", serr)
+			cfg.Log.Sendf(core.DefaultLog, "server", "%s", serr)
 		}
 	}()
+
 	sub.Errors(suberrors)
 
 	swager := new(Swager)
@@ -59,7 +61,7 @@ func (s *Swager) InitBlock(args *InitBlockArgs, reply *Reply) error {
 		return &BlockInitializationError{err, args.Block}
 	}
 
-	s.cfg.Log.Printf(core.InfoLog, "server", "<%s>(%s) configured", args.Block, args.Tag)
+	s.cfg.Log.Sendf(core.InfoLog, "server", "<%s>(%s) configured", args.Block, args.Tag)
 
 	if s.initalized == nil {
 		s.initalized = map[string]core.BlockInitializer{args.Tag: block}
@@ -87,7 +89,7 @@ func (s *Swager) SendToTag(args *SendToTagArgs, reply *Reply) error {
 		return &TagReceiveError{err, args.Tag}
 	}
 
-	s.cfg.Log.Printf(core.InfoLog, "server", "(%s) received args: %v", args.Tag, args.Args)
+	s.cfg.Log.Sendf(core.InfoLog, "server", "(%s) received args: %v", args.Tag, args.Args)
 	reply.Success = true
 	return nil
 }
@@ -100,7 +102,7 @@ func (s *Swager) SetTagLog(args *SetTagLogArgs, reply *Reply) error {
 
 	block.SetLogLevel(args.Level)
 
-	s.cfg.Log.Printf(core.InfoLog, "server", "(%s) set log level: %v", args.Tag, args.Level)
+	s.cfg.Log.Sendf(core.InfoLog, "server", "(%s) set log level: %v", args.Tag, args.Level)
 
 	reply.Args = args
 	reply.Success = true
@@ -110,11 +112,11 @@ func (s *Swager) SetTagLog(args *SetTagLogArgs, reply *Reply) error {
 func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 	switch args.Command {
 	case PingServer:
-		s.cfg.Log.Print(core.DefaultLog, "server", "pong")
+		s.cfg.Log.Send(core.DefaultLog, "server", "pong")
 		reply.Success = true
 		return nil
 	case RunServer:
-		s.cfg.Log.Print(core.DefaultLog, "server", "running initalized blocks")
+		s.cfg.Log.Send(core.DefaultLog, "server", "running initalized blocks")
 		for _, block := range s.initalized {
 			runner, ok := block.(core.Runner)
 			if ok {
@@ -126,7 +128,7 @@ func (s *Swager) Control(args *ControlArgs, reply *Reply) error {
 		reply.Success = true
 		return nil
 	case ResetServer:
-		s.cfg.Log.Print(core.DefaultLog, "server", "resetting initalized blocks")
+		s.cfg.Log.Send(core.DefaultLog, "server", "resetting initalized blocks")
 		closeAllBlocks(s)
 		s.Sub.Close()
 		sub, err := ipc.Subscribe()
@@ -157,6 +159,6 @@ func closeAllBlocks(s *Swager) {
 			closer.Close()
 		}
 		delete(s.initalized, tag)
-		s.cfg.Log.Printf(core.DefaultLog, "server", "(%s) closed", tag)
+		s.cfg.Log.Sendf(core.DefaultLog, "server", "(%s) closed", tag)
 	}
 }
