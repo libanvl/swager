@@ -8,7 +8,7 @@ type Flag[Context any] interface {
 	HandleTokens(context Context, tokens TokenList) error
 }
 
-func NewFlag[Context any](name string, handler TokenListHandler[Context]) Flag[Context] {
+func NewFlag[Context any](name string, handler TokenListHandler[Context]) *flag[Context] {
 	if len(name) < 1 {
 		return nil
 	}

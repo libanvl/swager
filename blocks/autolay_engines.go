@@ -19,7 +19,10 @@ func (a *Autolay) autoTiler(evt ipc.WindowChange, ws *ipc.Node) error {
 		return nil
 	}
 
-	cwin := node.Count(ws, node.IsLeaf)
+	cwin := node.Count(ws,
+		node.MatchAnd(
+			node.IsLeaf,
+			node.MatchType(ipc.ConNode)))
 	is_even := (cwin % 2) == 0
 
 	if is_even {
@@ -43,7 +46,10 @@ func (a *Autolay) masterStack(evt ipc.WindowChange, ws *ipc.Node) error {
 		return nil
 	}
 
-	cwin := node.Count(ws, node.IsLeaf)
+	cwin := node.Count(ws,
+		node.MatchAnd(
+			node.IsLeaf,
+			node.MatchType(ipc.ConNode)))
 	switch {
 	case cwin == 1:
 		a.Command("masterstack", "splith")

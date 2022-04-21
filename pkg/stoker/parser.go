@@ -1,6 +1,3 @@
-/*
-Package stocker is for specialized argument parsing.
-*/
 package stoker
 
 import (
@@ -33,7 +30,7 @@ type Parser[Context any] interface {
 	Present(flag string) bool
 }
 
-func NewParser[Context any](flags ...Flag[Context]) Parser[Context] {
+func NewParser[Context any](flags ...Flag[Context]) *parser[Context] {
 	return &parser[Context]{flags: flags, present: make([]string, 0)}
 }
 
@@ -52,7 +49,7 @@ func (p parser[Context]) Parse(args ...string) FlagHandlerList[Context] {
 		// the current token is a flag
 		if nextflag, ok := p.flags.FindByName(strings.ToLower(token)); ok {
 			// - complete the work for the current flag
-			if currflag != nil && len(currlist) > 0 {
+			if currflag != nil {
 				// -- add the current tokenlist to the tokenset for the current flag
 				result = append(result, FlagHandler[Context]{flag: currflag, tokens: currlist})
 			}
@@ -79,7 +76,7 @@ func (p parser[Context]) Parse(args ...string) FlagHandlerList[Context] {
 		}
 	}
 
-	if currflag != nil && len(currlist) > 0 {
+	if currflag != nil {
 		// - add the current tokenlist to the tokenset for the last flag in the list
 		result = append(result, FlagHandler[Context]{flag: currflag, tokens: currlist})
 	}

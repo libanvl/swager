@@ -45,6 +45,10 @@ func Count(root *ipc.Node, pred NodePredicate) int {
 		count += Count(n, pred)
 	}
 
+	for _, n := range root.FloatingNodes {
+		count += Count(n, pred)
+	}
+
 	return count
 }
 

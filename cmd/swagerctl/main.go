@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -17,29 +16,45 @@ import (
 )
 
 func main() {
-	flagHelp := flag.Bool("h", false, "show command usage")
-	flagCtimeout := flag.Duration("c", 2*time.Second, "time to wait for a connection to the swager daemon")
-
-	flag.Parse()
-	args := flag.Args()
-
-	if *flagHelp || len(args) < 2 {
-		if len(args) < 2 {
-			fmt.Println(usage())
-			os.Exit(0)
-		}
+	var ctimeout = time.Duration(2 * time.Second)
+	var print_usage = func(_ any, _ stoker.TokenList) error {
+		fmt.Println(usage())
+		os.Exit(0)
+		return nil
 	}
 
-	parser := stoker.NewParser(
-		stoker.NewFlag("server", listHandler(comm.Control)),
-		stoker.NewFlag("init", listHandler(comm.InitBlock)),
-		stoker.NewFlag("log", listHandler(comm.SetTagLog)),
-		stoker.NewFlag("send", listHandler(comm.SendToTag)),
+	if len(os.Args) < 1 {
+		print_usage(nil, nil)
+	}
+
+	flag_parse := stoker.NewParser[any](
+		stoker.NewFlag("-h", print_usage),
+		stoker.NewFlag("--help", print_usage),
+		stoker.NewFlag("-c", func(_ any, tl stoker.TokenList) error {
+			var err error
+			ctimeout, err = time.ParseDuration(tl[0])
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}),
 	)
 
-	handler := parser.Parse(args...)
+	if err := flag_parse.Parse(os.Args...).HandleAll(nil); err != nil {
+		log.Fatal("argument parsing error: ", err)
+	}
 
-	addr := getSwagerSocketAddress(flagCtimeout)
+	parser := stoker.NewParser[*rpc.Client](
+		stoker.NewFlag("--server", listHandler(comm.Control)),
+		stoker.NewFlag("--init", listHandler(comm.InitBlock)),
+		stoker.NewFlag("--log", listHandler(comm.SetTagLog)),
+		stoker.NewFlag("--send", listHandler(comm.SendToTag)),
+	)
+
+	handler := parser.Parse(os.Args...)
+
+	addr := getSwagerSocketAddress(&ctimeout)
 
 	if _, err := os.Stat(addr); os.IsNotExist(err) {
 		log.Fatal("swager daemon error: ", err)
@@ -135,19 +150,19 @@ func call(client *rpc.Client, op comm.SwagerMethod, a interface{}, reply *comm.R
 }
 
 func usage() string {
-	help := `swagerctl [<flags>] <method> [<submethod>] [args...]
+	help := `swagerctl [<flags>] <method> [args...]
 
   flags:
   -c <duration> time to wait for swagerd connection
   -h help
 
   methods:
-  server - send a server control command
-  init   - initialze a new block instance
-  log    - set log level on a block
-  send   - send a command to an initialized block instance
+  --server - send a server control command
+  --init   - initialze a new block instance
+  --log    - set log level on a block
+  --send   - send a command to an initialized block instance
 
-  init <tagname> <blockname> [args...]
+  --init <tagname> <blockname> [args...]
 
     <tagname> is a user-provided name for a specific block instance
     <blockname> is the registered name for a block type
@@ -155,19 +170,19 @@ func usage() string {
     see the block documentation for the supported args
 
     examples:
-      init myauto autolay masterstack 1 2 3 4
-      init myexecnew execnew 1 10
+      --init myauto autolay -masterstack 1 2 3 4
+      --init myexecnew execnew 1 10
 
-  log <tagname> <loglevel>
+  --log <tagname> <loglevel>
 
     <tagname> is a user-provided name for a specific block instance
     <loglevel> is one of: default, info, debug
 
     examples:
-      init myauto debug
-      init myauto default
+      --init myauto debug
+      --init myauto default
 
-  send <tagname> arg0 [args...]
+  --send <tagname> arg0 [args...]
 
     <tagname> is the user-provided name for a block instance
     arg0 [args...] are the arguments to send to the block instance
@@ -175,9 +190,9 @@ func usage() string {
     see the block documentation for the supported args
 
     examples:
-      send myexecnew "exec alacritty"
+      --send myexecnew "exec alacritty"
 
-  server <submethod>
+  --server <submethod>
 
     server method should be the only method in a call to swagerctl
 

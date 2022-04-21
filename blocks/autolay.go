@@ -28,8 +28,8 @@ func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log
 	a.Log = log
 	a.workspaces = make(map[string]LayoutEngine)
 
-	parser := stoker.NewParser(
-		stoker.NewFlag("autotiler", func(al *Autolay, tl stoker.TokenList) error {
+	parser := stoker.NewParser[*Autolay](
+		stoker.NewFlag("-autotiler", func(al *Autolay, tl stoker.TokenList) error {
 			for _, ws := range tl {
 				al.workspaces[ws] = al.autoTiler
 				al.Log.Infof("Managing %v with autotiler", ws)
@@ -38,7 +38,7 @@ func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log
 			return nil
 		}),
 
-		stoker.NewFlag("masterstack", func(al *Autolay, tl stoker.TokenList) error {
+		stoker.NewFlag("-masterstack", func(al *Autolay, tl stoker.TokenList) error {
 			for _, ws := range tl {
 				al.workspaces[ws] = al.masterStack
 				al.Log.Infof("Managing %v with masterstack", ws)
@@ -50,10 +50,10 @@ func (a *Autolay) Init(client core.Client, sub core.Sub, opts *core.Options, log
 
 	handler := parser.Parse(args...)
 
-	a.Log.Defaultf("executor: %#v", handler)
+	a.Log.Defaultf("handler: %#v", handler)
 
 	if err := handler.HandleAll(a); err != nil {
-		a.Log.Debugf("Executor error: %#v", err)
+		a.Log.Debugf("handler error: %#v", err)
 		return err
 	}
 
@@ -98,7 +98,7 @@ func (a *Autolay) WindowChanged(evt ipc.WindowChange) {
 
 	root, err := a.Client.Tree()
 	if err != nil {
-		a.Log.Defaultf("(%v) Failed getting tree: %v", evt.Container.ID, err)
+		a.Log.Defaultf("(%v) Failed getting tree: %#v", evt.Container.ID, err)
 	}
 
 	workspace_node := node.First(
@@ -118,13 +118,13 @@ func (a *Autolay) Command(engine_name string, cmd string) error {
 
 	res, err := a.Client.Command(cmd)
 	if err != nil {
-		a.Log.Defaultf("{%v} ipc error: %v", engine_name, err)
+		a.Log.Defaultf("{%v} ipc error: %#v", engine_name, err)
 		return err
 	}
 
 	if a.LogLevel.Debug() {
 		for _, r := range res {
-			a.Log.Debugf("{%v} Command result: %v", engine_name, r)
+			a.Log.Debugf("{%v} Command result: %#v", engine_name, r)
 		}
 	}
 
