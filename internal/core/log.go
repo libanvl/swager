@@ -90,7 +90,7 @@ type Logger interface {
 	Debugf(format string, args ...any)
 }
 
-func NewPrefixLogger(prefix string, logch LogChannel) Logger {
+func NewPrefixLogger(prefix string, logch LogChannel) *prefixLogger {
 	return &prefixLogger{logch: logch, prefix: prefix}
 }
 
