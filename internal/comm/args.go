@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/libanvl/swager/internal/core"
-	"github.com/libanvl/swager/pkg/stoker"
+	"github.com/libanvl/swager/stoker"
 )
 
 type SwagerArgs interface {

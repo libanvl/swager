@@ -3,7 +3,7 @@ package core
 import (
 	"flag"
 
-	"github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/ipc"
 )
 
 func init() {

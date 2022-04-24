@@ -1,6 +1,6 @@
 package node
 
-import "github.com/libanvl/swager/pkg/ipc"
+import "github.com/libanvl/swager/ipc"
 
 const NodeNameScratch = "__i3_scratch"
 

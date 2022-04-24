@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/libanvl/swager/internal/comm"
-	"github.com/libanvl/swager/pkg/stoker"
+	"github.com/libanvl/swager/stoker"
 )
 
 func main() {

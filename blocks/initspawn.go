@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/libanvl/swager/internal/core"
-	"github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/ipc"
 )
 
 type workspace string

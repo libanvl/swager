@@ -1,6 +1,6 @@
 package core
 
-import "github.com/libanvl/swager/pkg/ipc"
+import "github.com/libanvl/swager/ipc"
 
 func Focused(ws []ipc.Workspace) *ipc.Workspace {
 	for _, w := range ws {

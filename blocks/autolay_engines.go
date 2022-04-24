@@ -3,7 +3,7 @@ package blocks
 import (
 	"github.com/libanvl/swager/internal/core"
 	"github.com/libanvl/swager/internal/core/node"
-	"github.com/libanvl/swager/pkg/ipc"
+	"github.com/libanvl/swager/ipc"
 )
 
 func (a *Autolay) autoTiler(evt ipc.WindowChange, ws *ipc.Node) error {
