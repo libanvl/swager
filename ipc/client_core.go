@@ -42,7 +42,7 @@ func (c *Client) write(pt payloadType, payload []byte) error {
 }
 
 func (c *Client) read() ([]byte, error) {
-	var h header
+	var h Header
 	if err := binary.Read(c, c.yo, &h); err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (c *Client) read() ([]byte, error) {
 	return buf, nil
 }
 
-func clientcallptr[T interface{}](c *Client, pt payloadType, payload []byte) (*T, error) {
+func callgetptr[T interface{}](c *Client, pt payloadType, payload []byte) (*T, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func clientcallptr[T interface{}](c *Client, pt payloadType, payload []byte) (*T
 	return t, nil
 }
 
-func clientcallarr[T interface{}](c *Client, pt payloadType, payload []byte) ([]T, error) {
+func callgetarr[T interface{}](c *Client, pt payloadType, payload []byte) ([]T, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
 		return nil, err

@@ -3,11 +3,6 @@ package stoker
 type TokenList []string
 type TokenListHandler[Context any] func(context Context, tokens TokenList) error
 
-type Flag[Context any] interface {
-	Name() string
-	HandleTokens(context Context, tokens TokenList) error
-}
-
 func NewFlag[Context any](name string, handler TokenListHandler[Context]) *flag[Context] {
 	if len(name) < 1 {
 		return nil

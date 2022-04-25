@@ -8,6 +8,26 @@ import (
 	"sync"
 )
 
+// Subscription wraps a Client. It registers event handlers
+// for the supported sway-ipc events.
+type Subscription struct {
+	client     *Client
+	errors     []chan<- error
+	clientmx   sync.Mutex
+	currcookie uint32
+	workspaces mapSyncPair[WorkspaceChange]
+	modes      mapSyncPair[ModeChange]
+	windows    mapSyncPair[WindowChange]
+	bindings   mapSyncPair[BindingChange]
+	shutdowns  mapSyncPair[ShutdownChange]
+	ticks      mapSyncPair[Tick]
+}
+
+// Cookie represents a single registered event handler.
+type Cookie uint32
+
+var EmptyCookie = Cookie(0)
+
 // Subscribe to sway-ipc events, creating a new Client.
 // A single Subscription can listen for multiple event types.
 // After all event handlers have been added, call Run to start
@@ -32,24 +52,6 @@ func SubscribeCustom(client *Client) *Subscription {
 	s.errors = make([]chan<- error, 0)
 
 	return s
-}
-
-// Cookie represents a single registered event handler.
-type Cookie uint32
-
-var EmptyCookie = Cookie(0)
-
-type Subscription struct {
-	client     *Client
-	errors     []chan<- error
-	clientmx   sync.Mutex
-	currcookie uint32
-	workspaces mapSyncPair[WorkspaceChange]
-	modes      mapSyncPair[ModeChange]
-	windows    mapSyncPair[WindowChange]
-	bindings   mapSyncPair[BindingChange]
-	shutdowns  mapSyncPair[ShutdownChange]
-	ticks      mapSyncPair[Tick]
 }
 
 // Errors returns the channel that subscription errors are yielded on.
@@ -106,7 +108,7 @@ func (s *Subscription) RemoveHandler(c Cookie) {
 // as events come in.
 func (s *Subscription) Run() {
 	for {
-		var h header
+		var h Header
 
 		if s.client == nil {
 			break
@@ -123,7 +125,7 @@ func (s *Subscription) Run() {
 			continue
 		}
 
-		if !validMagic(h.Magic) {
+		if !ValidMagic(h.Magic) {
 			continue
 		}
 

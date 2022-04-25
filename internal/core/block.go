@@ -2,6 +2,15 @@ package core
 
 import "io"
 
+type Logger interface {
+	Default(msg string)
+	Defaultf(format string, args ...any)
+	Info(msg string)
+	Infof(format string, args ...any)
+	Debug(msg string)
+	Debugf(format string, args ...any)
+}
+
 type BasicBlock struct {
 	Client   Client
 	Opts     *Options

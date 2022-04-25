@@ -81,15 +81,6 @@ type prefixLogger struct {
 	prefix string
 }
 
-type Logger interface {
-	Default(msg string)
-	Defaultf(format string, args ...any)
-	Info(msg string)
-	Infof(format string, args ...any)
-	Debug(msg string)
-	Debugf(format string, args ...any)
-}
-
 func NewPrefixLogger(prefix string, logch LogChannel) *prefixLogger {
 	return &prefixLogger{logch: logch, prefix: prefix}
 }

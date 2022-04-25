@@ -4,6 +4,11 @@ import (
 	"strings"
 )
 
+type Flag[Context any] interface {
+	Name() string
+	HandleTokens(context Context, tokens TokenList) error
+}
+
 type FlagHandler[Context any] struct {
 	flag   Flag[Context]
 	tokens TokenList
@@ -23,11 +28,6 @@ func (fhl FlagHandlerList[Context]) HandleAll(context Context) error {
 	}
 
 	return nil
-}
-
-type Parser[Context any] interface {
-	Parse(args ...string) FlagHandlerList[Context]
-	Present(flag string) bool
 }
 
 func NewParser[Context any](flags ...Flag[Context]) *parser[Context] {
@@ -84,6 +84,8 @@ func (p parser[Context]) Parse(args ...string) FlagHandlerList[Context] {
 	return result
 }
 
+// Present returns a value indicating whether an argument
+// matching the flag name was parsed
 func (p *parser[Context]) Present(flag string) bool {
 	return contains(p.present, strings.ToLower(flag))
 }

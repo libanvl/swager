@@ -38,20 +38,20 @@ const (
 
 var magic = [6]byte{'i', '3', '-', 'i', 'p', 'c'}
 
-// validMagic tests whether the byte array represents
+// ValidMagic tests whether the byte array represents
 // the ipc payload magic string
-func validMagic(test [6]byte) bool {
+func ValidMagic(test [6]byte) bool {
 	return test == magic
 }
 
-type header struct {
+type Header struct {
 	Magic         [6]byte
 	PayloadLength uint32
 	PayloadType   payloadType
 }
 
-func newHeader(pt payloadType, plen int) *header {
-	h := new(header)
+func newHeader(pt payloadType, plen int) *Header {
+	h := new(Header)
 	h.Magic = magic
 	h.PayloadLength = uint32(plen)
 	h.PayloadType = pt
