@@ -1,28 +1,28 @@
 package ipc
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=payloadType
-type payloadType uint32
+//go:generate go run golang.org/x/tools/cmd/stringer -type=PayloadType
+type PayloadType uint32
 
 const (
-	runCommandMessage      payloadType = 0
-	getWorkspacesMessage   payloadType = 1
-	subscribeMessage       payloadType = 2
-	getOutputsMessage      payloadType = 3
-	getTreeMessage         payloadType = 4
-	getMarksMessage        payloadType = 5
-	getBarConfigMessage    payloadType = 6
-	getVersionMessage      payloadType = 7
-	getBindingModesMessage payloadType = 8
-	getConfigMessage       payloadType = 9
-	sendTickMessage        payloadType = 10
-	syncMessage            payloadType = 11
-	getBindingStateMessage payloadType = 12
-	getInputsMessage       payloadType = 100
-	getSeatsMessage        payloadType = 101
+	RunCommandMessage      PayloadType = 0
+	GetWorkspacesMessage   PayloadType = 1
+	SubscribeMessage       PayloadType = 2
+	GetOutputsMessage      PayloadType = 3
+	GetTreeMessage         PayloadType = 4
+	GetMarksMessage        PayloadType = 5
+	GetBarConfigMessage    PayloadType = 6
+	GetVersionMessage      PayloadType = 7
+	GetBindingModesMessage PayloadType = 8
+	GetConfigMessage       PayloadType = 9
+	SendTickMessage        PayloadType = 10
+	SyncMessage            PayloadType = 11
+	GetBindingStateMessage PayloadType = 12
+	GetInputsMessage       PayloadType = 100
+	GetSeatsMessage        PayloadType = 101
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=EventPayloadType
-type EventPayloadType payloadType
+type EventPayloadType PayloadType
 
 const (
 	WorkspaceEvent       EventPayloadType = 0x80000000
@@ -47,15 +47,11 @@ func ValidMagic(test [6]byte) bool {
 type Header struct {
 	Magic         [6]byte
 	PayloadLength uint32
-	PayloadType   payloadType
+	PayloadType   PayloadType
 }
 
-func newHeader(pt payloadType, plen int) *Header {
-	h := new(Header)
-	h.Magic = magic
-	h.PayloadLength = uint32(plen)
-	h.PayloadType = pt
-	return h
+func NewHeader(pt PayloadType, plen int) *Header {
+	return &Header{Magic: magic, PayloadLength: uint32(plen), PayloadType: pt}
 }
 
 func (p EventPayloadType) eventName() string {

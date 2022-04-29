@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-func (c *Client) ipccall(pt payloadType, payload []byte) ([]byte, error) {
+func (c *Client) ipccall(pt PayloadType, payload []byte) ([]byte, error) {
 	c.ipcmx.Lock()
 	defer c.ipcmx.Unlock()
 
@@ -17,7 +17,7 @@ func (c *Client) ipccall(pt payloadType, payload []byte) ([]byte, error) {
 	return c.read()
 }
 
-func (c *Client) ipccallraw(pt payloadType, payload []byte) (string, error) {
+func (c *Client) ipccallraw(pt PayloadType, payload []byte) (string, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
 		return "", nil
@@ -25,8 +25,8 @@ func (c *Client) ipccallraw(pt payloadType, payload []byte) (string, error) {
 	return string(res), nil
 }
 
-func (c *Client) write(pt payloadType, payload []byte) error {
-	h := newHeader(pt, len(payload))
+func (c *Client) write(pt PayloadType, payload []byte) error {
+	h := NewHeader(pt, len(payload))
 	if err := binary.Write(c, c.yo, h); err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (c *Client) read() ([]byte, error) {
 	return buf, nil
 }
 
-func callgetptr[T interface{}](c *Client, pt payloadType, payload []byte) (*T, error) {
+func callgetptr[T interface{}](c *Client, pt PayloadType, payload []byte) (*T, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func callgetptr[T interface{}](c *Client, pt payloadType, payload []byte) (*T, e
 	return t, nil
 }
 
-func callgetarr[T interface{}](c *Client, pt payloadType, payload []byte) ([]T, error) {
+func callgetarr[T interface{}](c *Client, pt PayloadType, payload []byte) ([]T, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
 		return nil, err
