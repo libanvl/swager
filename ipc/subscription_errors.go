@@ -6,6 +6,10 @@ type MonitoringError struct {
 	err error
 }
 
+func NewMonitoringError(err error) *MonitoringError {
+	return &MonitoringError{err}
+}
+
 func (e *MonitoringError) Error() string {
 	return fmt.Sprintf("subscription: %v", e.err)
 }

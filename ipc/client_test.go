@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/libanvl/swager/ipc"
@@ -26,7 +27,10 @@ func TestConnect(t *testing.T) {
 func TestConnectNoSwaysock(t *testing.T) {
 	t.Setenv("SWAYSOCK", "")
 	_, err := ipc.Connect()
+	assert.NotNil(t, err)
 
+	os.Unsetenv("SWAYSOCK")
+	_, err = ipc.Connect()
 	assert.NotNil(t, err)
 }
 
@@ -64,6 +68,32 @@ func TestPayloadWrites(t *testing.T) {
 	}
 }
 
+func TestPayloadWritesWithWriteError(t *testing.T) {
+	tests := map[string]struct {
+		action  func(*ipc.Client, string) (any, error)
+		payload string
+	}{
+		"Command":    {func(c *ipc.Client, s string) (any, error) { return c.Command(s) }, "commandpayload"},
+		"CommandRaw": {func(c *ipc.Client, s string) (any, error) { return c.CommandRaw(s) }, "commandrawpayload"},
+		"Tick":       {func(c *ipc.Client, s string) (any, error) { return c.Tick(s) }, "tickpayload"},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert := require.New(t)
+			conn := test.NewMockConnection(t)
+			client := ipc.NewClient(conn, binary.LittleEndian)
+
+			conn.SetNextWriteResult(1, net.ErrClosed)
+			_, err := tc.action(client, tc.payload)
+			assert.NotNil(err)
+
+			conn.AssertCalled("Write")
+			conn.AssertNotCalled("Read")
+			conn.AssertNotCalled("Close")
+		})
+	}
+}
 func TestNoPayloadWrites(t *testing.T) {
 	tests := map[string]struct {
 		action func(*ipc.Client)
@@ -187,4 +217,12 @@ func TestNoPayloadReads(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestSubscribe(t *testing.T) {
+	conn := test.NewMockConnection(t)
+	client := ipc.NewClient(conn, binary.LittleEndian)
+	result, err := client.Subscribe()
+	assert.Nil(t, result)
+	assert.NotNil(t, err)
 }

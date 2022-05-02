@@ -7,7 +7,12 @@ type ReadValue struct {
 }
 
 func (r ReadValue) Bytes() []byte {
-	return *r.GetT()
+	t := r.GetT()
+	if t == nil {
+		return nil
+	}
+
+	return *t
 }
 
 func (r ReadValue) Error() error {

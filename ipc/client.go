@@ -70,7 +70,8 @@ func (c *Client) WorkspacesRaw() (string, error) {
 func (c *Client) Subscribe(evts ...EventPayloadType) (*Result, error) {
 	pbytes, err := json.Marshal(eventNames(evts))
 	if err != nil {
-		return nil, err
+		// panic here because this shouldn't be possible
+		panic(err)
 	}
 
 	return callgetptr[Result](c, SubscribeMessage, pbytes)

@@ -20,7 +20,7 @@ func (c *Client) ipccall(pt PayloadType, payload []byte) ([]byte, error) {
 func (c *Client) ipccallraw(pt PayloadType, payload []byte) (string, error) {
 	res, err := c.ipccall(pt, payload)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	return string(res), nil
 }
