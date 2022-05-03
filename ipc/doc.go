@@ -4,7 +4,7 @@ socket. The Client supports sending messages and subscribing to events.
 
 Subsciption wraps Client to add support for typed event callbacks.
 
-swager/pkg/ipc aims to be a fully featured library that supports all features
+swager/ipc aims to be a fully featured library that supports all features
 exposed over the sway ipc socket.
 
 Notable missing pieces include everything related to Bars and Inputs, though the

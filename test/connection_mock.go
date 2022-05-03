@@ -139,10 +139,3 @@ func (mc *MockConnection) AssertNotCalled(method string) bool {
 func (mc *MockConnection) AssertNumberOfCalls(method string, calls uint) bool {
 	return assert.Equal(mc.t, calls, mc.callCounts[method])
 }
-
-func (mc *MockConnection) LogStats() {
-	mc.t.Log("Counts:")
-	for m, c := range mc.callCounts {
-		mc.t.Logf("\t%s: %d", m, c)
-	}
-}

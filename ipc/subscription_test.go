@@ -167,8 +167,6 @@ func TestHandlerRegistration(t *testing.T) {
 				assert.NotZero(t, cookie)
 
 				assert.Contains(t, string(conn.WriteAt(1)), tc.expected)
-
-				conn.LogStats()
 			})
 		}
 	}
@@ -284,8 +282,6 @@ func TestRun(t *testing.T) {
 				conn.PushPayloadForRead(uint32(tc.payload), message_json, yo)
 
 				go sub.Run()
-
-				conn.LogStats()
 			})
 		}
 	}

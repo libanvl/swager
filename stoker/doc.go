@@ -12,9 +12,10 @@ Example
 
 Given the flags: --foo and --bar
 And the input: one two --foo three four --bar --five
-  * Token `one` and `two` are ignored.
-  * Token `three` and `four` are placed in a TokenList for the --foo Flag
-  * Token `--five` is placed in a TokenList for the --bar Flag
+
+  * Token one and two are ignored.
+  * Token three and four are placed in a TokenList for the --foo Flag
+  * Token --five is placed in a TokenList for the --bar Flag
 
 Parser
 
@@ -24,6 +25,7 @@ call each handler in the order the flags where found during parsing.
 
 Example
 
+```
 context := new(ExampleContext)
 
 common_handler := func(context *ExampleContext, tl stoker.TokenList) error {
@@ -40,5 +42,6 @@ handlers := parser.Parse(os.Args...)
 if err := handlers.HandleAll(context); err := nil {
   log.Fatal(err)
 }
+```
 */
 package stoker
